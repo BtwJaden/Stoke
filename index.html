@@ -89,7 +89,7 @@
     min-height: 100vh;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  .app { max-width: 1320px; margin: 0 auto; padding: 28px 20px 80px; }
+  .app { max-width: 1320px; margin: 0 auto; padding: 28px 20px calc(70px + env(safe-area-inset-bottom)); }
 
   /* ---------- header ---------- */
   .topbar {
@@ -124,31 +124,10 @@
   .xp-bar { width: 84px; height: 4px; border-radius: 3px; background: var(--border); overflow: hidden; }
   .xp-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--ember)); border-radius: inherit; transition: width 0.4s ease; }
 
-  .header-actions { display: flex; align-items: center; gap: 10px; }
-
-  .view-tabs {
-    display: flex; background: var(--surface); border: 1px solid var(--border);
-    border-radius: 999px; padding: 3px; box-shadow: var(--shadow);
-  }
-  .view-tab {
-    border: none; background: transparent; font-family: var(--font-body); font-size: 0.82rem;
-    font-weight: 500; color: var(--text-muted); padding: 6px 14px; border-radius: 999px; cursor: pointer;
-  }
-  .view-tab.active { background: var(--ember-soft); color: var(--ember); font-weight: 600; }
-
-  .notebook-toggle {
-    display: flex; align-items: center; gap: 7px;
-    background: var(--surface); border: 1px solid var(--border); color: var(--text);
-    font-family: var(--font-body); font-size: 0.82rem; font-weight: 500;
-    padding: 8px 14px; border-radius: 999px; cursor: pointer; box-shadow: var(--shadow);
-  }
-  .notebook-toggle svg { width: 15px; height: 15px; color: var(--ink); }
-  .notebook-toggle:hover { border-color: var(--ink); }
-
   /* ---------- board ---------- */
   .board { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; max-width: 980px; margin: 0 auto; }
   @media (max-width: 720px) { .board { grid-template-columns: 1fr; } }
-  .board[hidden], .calendar-view[hidden] { display: none; }
+  .board[hidden], .calendar-view[hidden], .notes-view[hidden] { display: none; }
 
   .column {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -249,27 +228,45 @@
   .note-timestamp { display: flex; flex-direction: column; gap: 2px; font-family: var(--font-mono); font-size: 0.66rem; color: var(--text-muted); margin-top: 5px; }
   .note-timestamp[hidden] { display: none; }
 
-  /* ---------- floating panels ---------- */
-  .floating-panel {
-    position: fixed; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-lg); box-shadow: 0 18px 44px rgba(0,0,0,0.22), var(--shadow);
-    z-index: 40; overflow: hidden; min-width: 300px; min-height: 240px;
+  /* ---------- bottom nav ---------- */
+  .bottom-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+    display: flex; background: var(--surface); border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
   }
-  .floating-panel[hidden] { display: none; }
-  .floating-header {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 8px 12px 16px;
-    background: var(--surface-2); border-bottom: 1px solid var(--border); cursor: move; user-select: none;
-    flex: none; touch-action: none;
+  .nav-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 9px 4px 8px; background: transparent; border: none; color: var(--text-muted); cursor: pointer;
   }
-  .floating-title { font-family: var(--font-display); font-weight: 700; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .floating-hint { font-size: 0.78rem; color: var(--text-muted); padding: 12px 16px 0; flex: none; }
-  .floating-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-  .floating-resize {
-    position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize;
-    border-style: solid; border-width: 0 0 18px 18px; border-color: transparent transparent var(--border) transparent;
-    opacity: 0.8;
+  .nav-tab svg { width: 22px; height: 22px; }
+  .nav-tab span { font-family: var(--font-body); font-size: 0.66rem; font-weight: 500; }
+  .nav-tab.active { color: var(--ember); }
+
+  /* ---------- notes page ---------- */
+  .notes-view { display: flex; flex-direction: column; gap: 16px; max-width: 700px; margin: 0 auto; width: 100%; }
+  .notes-list { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ---------- modal sheet (day details) ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(10,8,5,0.45); z-index: 38;
   }
-  .floating-resize:hover { opacity: 1; border-bottom-color: var(--ink); }
+  .modal-backdrop[hidden] { display: none; }
+  .modal-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; max-height: 85vh;
+    background: var(--surface); border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0; box-shadow: 0 -12px 32px rgba(0,0,0,0.28);
+    z-index: 39; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .modal-panel[hidden] { display: none; }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 8px 14px 16px;
+    background: var(--surface-2); border-bottom: 1px solid var(--border); flex: none;
+  }
+  .modal-title { font-family: var(--font-display); font-weight: 700; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .modal-body {
+    flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px;
+    padding-bottom: max(16px, calc(env(safe-area-inset-bottom) + 12px));
+  }
 
   /* ---------- habit tile ---------- */
   .habit-tile {
@@ -396,7 +393,7 @@
     align-self: flex-start; display: flex; align-items: center; gap: 6px;
     background: transparent; border: 1px dashed var(--border); color: var(--text-muted);
     font-family: var(--font-body); font-size: 0.84rem; padding: 9px 14px; border-radius: var(--radius-sm); cursor: pointer;
-    flex: none; margin: 0 16px 16px;
+    flex: none;
   }
   .add-note-btn:hover { border-color: var(--ink); color: var(--text); }
   .add-note-btn svg { width: 14px; height: 14px; }
@@ -427,12 +424,11 @@
 
   /* ---------- mobile ---------- */
   @media (max-width: 640px) {
-    .app { padding: 16px 12px 60px; }
+    .app { padding: 16px 12px calc(70px + env(safe-area-inset-bottom)); }
     .topbar { margin-bottom: 18px; gap: 10px; }
     .brand-name { font-size: 1.3rem; }
     .status-cluster { gap: 12px; }
     .level-badge { min-width: 68px; }
-    .header-actions { flex: 1 1 100%; justify-content: space-between; }
 
     .cal-grid-wrap { padding: 10px; }
     .cal-nav { gap: 8px; }
@@ -442,16 +438,6 @@
     .cal-day { padding: 4px; gap: 2px; border-radius: 8px; }
     .cal-day-num { font-size: 0.66rem; }
     .cal-day-chip { font-size: 0.55rem; padding: 1px 4px; line-height: 1.25; }
-
-    .floating-panel {
-      left: 0 !important; top: 0 !important;
-      width: 100vw !important; height: 100vh !important;
-      max-width: 100vw; max-height: 100vh; border-radius: 0; border: none;
-    }
-    .floating-resize { display: none; }
-    .floating-header { padding-top: max(12px, env(safe-area-inset-top)); }
-    .floating-body { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
-    .add-note-btn { margin-bottom: max(16px, env(safe-area-inset-bottom)); }
 
     .icon-btn { width: 30px; height: 30px; }
     .flame-btn { width: 42px; height: 42px; }
@@ -549,15 +535,6 @@
         <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
       </div>
     </div>
-    <div class="header-actions">
-      <div class="view-tabs">
-        <button class="view-tab active" id="tabBoard" data-view="board">Board</button>
-        <button class="view-tab" id="tabCalendar" data-view="calendar">Calendar</button>
-      </div>
-      <button class="notebook-toggle" id="notebookToggle">
-        <svg><use href="#icon-book"/></svg> Notebook
-      </button>
-    </div>
   </header>
 
   <main class="board" id="boardView">
@@ -603,25 +580,34 @@
       <div class="cal-days" id="calDays"></div>
     </div>
   </main>
+
+  <main class="notes-view" id="notesView" hidden>
+    <div class="column-head"><h2>Notes</h2><span class="column-count" id="noteCount">0</span></div>
+    <p class="column-hint">Freeform notes, separate from your habits and tasks.</p>
+    <div class="notes-list" id="noteCards"></div>
+    <button class="add-note-btn" id="addNoteBtn"><svg><use href="#icon-plus"/></svg> New note</button>
+  </main>
 </div>
 
-<div class="floating-panel" id="notebookPanel" data-panel="notebook" hidden aria-label="Notebook">
-  <div class="floating-header" data-drag-handle>
-    <span class="floating-title">Notebook</span>
-    <button class="icon-btn" data-action="close-panel" aria-label="Close notebook"><svg><use href="#icon-x"/></svg></button>
-  </div>
-  <p class="floating-hint">Freeform notes, separate from your habits and tasks. Drag the header to move, drag the corner to resize.</p>
-  <div class="floating-body" id="noteCards"></div>
-  <button class="add-note-btn" id="addNoteBtn"><svg><use href="#icon-plus"/></svg> New note</button>
-  <div class="floating-resize" data-resize-handle></div>
-</div>
+<nav class="bottom-nav">
+  <button class="nav-tab active" id="navBoard" data-view="board" aria-label="Board">
+    <svg><use href="#icon-flame"/></svg><span>Board</span>
+  </button>
+  <button class="nav-tab" id="navCalendar" data-view="calendar" aria-label="Calendar">
+    <svg><use href="#icon-calendar"/></svg><span>Calendar</span>
+  </button>
+  <button class="nav-tab" id="navNotes" data-view="notes" aria-label="Notes">
+    <svg><use href="#icon-book"/></svg><span>Notes</span>
+  </button>
+</nav>
 
-<div class="floating-panel" id="dayPanel" data-panel="dayPanel" hidden aria-label="Day details">
-  <div class="floating-header" data-drag-handle>
-    <span class="floating-title" id="calAgendaDate"></span>
+<div class="modal-backdrop" id="dayModalBackdrop" hidden></div>
+<div class="modal-panel" id="dayPanel" hidden aria-label="Day details">
+  <div class="modal-header">
+    <span class="modal-title" id="calAgendaDate"></span>
     <button class="icon-btn" data-action="close-panel" aria-label="Close day details"><svg><use href="#icon-x"/></svg></button>
   </div>
-  <div class="floating-body">
+  <div class="modal-body">
     <div class="agenda-section">
       <span class="agenda-section-label">Appointments</span>
       <ul class="item-list" id="eventList"></ul>
@@ -647,7 +633,6 @@
       </div>
     </form>
   </div>
-  <div class="floating-resize" data-resize-handle></div>
 </div>
 
 <div class="celebration" id="celebration" aria-live="polite">
@@ -713,12 +698,11 @@
       var raw = localStorage.getItem(STORAGE_KEY);
       state = raw ? JSON.parse(raw) : null;
     } catch (e) { state = null; }
-    if (!state) state = { xp: 0, habits: [], tasks: [], notes: [], events: [], ui: {} };
+    if (!state) state = { xp: 0, habits: [], tasks: [], notes: [], events: [] };
     if (!state.events) state.events = [];
     if (!state.notes) state.notes = [];
     if (!state.habits) state.habits = [];
     if (!state.tasks) state.tasks = [];
-    if (!state.ui) state.ui = {};
     state.notes.forEach(function (n) { if (!n.createdAt) n.createdAt = n.updatedAt || Date.now(); });
     state.habits.forEach(function (h) { if (h.note && !h.noteCreatedAt) h.noteCreatedAt = h.noteUpdatedAt = Date.now(); });
     state.tasks.forEach(function (t) { if (t.note && !t.noteCreatedAt) t.noteCreatedAt = t.noteUpdatedAt = Date.now(); });
@@ -889,7 +873,12 @@
   }
 
   function renderNotes() {
+    document.getElementById('noteCount').textContent = state.notes.length;
     noteCards.innerHTML = '';
+    if (!state.notes.length) {
+      noteCards.innerHTML = '<div class="empty-state">No notes yet. Start one below.</div>';
+      return;
+    }
     var sorted = state.notes.slice().sort(function (a, b) { return b.updatedAt - a.updatedAt; });
     sorted.forEach(function (n) {
       var card = document.createElement('div');
@@ -1273,134 +1262,46 @@
     renderNotes();
   });
 
-  // ---------- floating panels ----------
-  var zTop = 40;
-  function bringToFront(panel) {
-    zTop++;
-    panel.style.zIndex = zTop;
-  }
-  function defaultPanelRect(key) {
-    if (key === 'notebook') {
-      var w = Math.min(440, window.innerWidth - 32);
-      var h = Math.min(580, window.innerHeight - 110);
-      return { left: window.innerWidth - w - 24, top: 96, width: w, height: h };
-    }
-    if (key === 'dayPanel') {
-      var w2 = Math.min(440, window.innerWidth - 32);
-      var h2 = Math.min(580, window.innerHeight - 110);
-      return { left: Math.max(16, (window.innerWidth - w2) / 2), top: 116, width: w2, height: h2 };
-    }
-    return { left: 80, top: 80, width: 360, height: 420 };
-  }
-  function savePanelRect(panel) {
-    var key = panel.dataset.panel;
-    var r = panel.getBoundingClientRect();
-    state.ui[key] = { left: r.left, top: r.top, width: r.width, height: r.height };
-    saveState();
-  }
-  function openPanel(panel) {
-    var key = panel.dataset.panel;
-    var rect = state.ui[key];
-    if (!rect) rect = defaultPanelRect(key);
-    var left = Math.min(Math.max(4, rect.left), window.innerWidth - 80);
-    var top = Math.min(Math.max(4, rect.top), window.innerHeight - 60);
-    panel.style.left = left + 'px';
-    panel.style.top = top + 'px';
-    panel.style.width = rect.width + 'px';
-    panel.style.height = rect.height + 'px';
-    panel.hidden = false;
-    bringToFront(panel);
-  }
-  function closePanel(panel) {
-    panel.hidden = true;
-  }
-  function makeDraggable(panel, handle) {
-    var dragging = false, startX, startY, startLeft, startTop;
-    handle.addEventListener('pointerdown', function (e) {
-      if (e.target.closest('button')) return;
-      dragging = true;
-      startX = e.clientX; startY = e.clientY;
-      var rect = panel.getBoundingClientRect();
-      startLeft = rect.left; startTop = rect.top;
-      handle.setPointerCapture(e.pointerId);
-      bringToFront(panel);
-    });
-    handle.addEventListener('pointermove', function (e) {
-      if (!dragging) return;
-      var dx = e.clientX - startX, dy = e.clientY - startY;
-      var w = panel.getBoundingClientRect().width;
-      var newLeft = Math.max(4, Math.min(window.innerWidth - Math.min(80, w), startLeft + dx));
-      var newTop = Math.max(4, Math.min(window.innerHeight - 40, startTop + dy));
-      panel.style.left = newLeft + 'px';
-      panel.style.top = newTop + 'px';
-    });
-    handle.addEventListener('pointerup', function (e) {
-      if (!dragging) return;
-      dragging = false;
-      handle.releasePointerCapture(e.pointerId);
-      savePanelRect(panel);
-    });
-  }
-  function makeResizable(panel, handle) {
-    var resizing = false, startX, startY, startW, startH;
-    handle.addEventListener('pointerdown', function (e) {
-      resizing = true;
-      startX = e.clientX; startY = e.clientY;
-      var rect = panel.getBoundingClientRect();
-      startW = rect.width; startH = rect.height;
-      handle.setPointerCapture(e.pointerId);
-      bringToFront(panel);
-      e.stopPropagation();
-    });
-    handle.addEventListener('pointermove', function (e) {
-      if (!resizing) return;
-      var dw = e.clientX - startX, dh = e.clientY - startY;
-      var newW = Math.max(300, Math.min(window.innerWidth - 20, startW + dw));
-      var newH = Math.max(240, Math.min(window.innerHeight - 20, startH + dh));
-      panel.style.width = newW + 'px';
-      panel.style.height = newH + 'px';
-    });
-    handle.addEventListener('pointerup', function (e) {
-      if (!resizing) return;
-      resizing = false;
-      handle.releasePointerCapture(e.pointerId);
-      savePanelRect(panel);
-    });
-  }
-
-  var notebookPanel = document.getElementById('notebookPanel');
+  // ---------- day details modal ----------
   var dayPanel = document.getElementById('dayPanel');
-  [notebookPanel, dayPanel].forEach(function (panel) {
-    makeDraggable(panel, panel.querySelector('[data-drag-handle]'));
-    makeResizable(panel, panel.querySelector('[data-resize-handle]'));
-    panel.querySelector('[data-action="close-panel"]').addEventListener('click', function () { closePanel(panel); });
-    panel.addEventListener('pointerdown', function () { bringToFront(panel); });
-  });
-  document.getElementById('notebookToggle').addEventListener('click', function () { openPanel(notebookPanel); });
+  var dayModalBackdrop = document.getElementById('dayModalBackdrop');
+  function openDayModal() {
+    dayModalBackdrop.hidden = false;
+    dayPanel.hidden = false;
+  }
+  function closeDayModal() {
+    dayModalBackdrop.hidden = true;
+    dayPanel.hidden = true;
+  }
+  dayPanel.querySelector('[data-action="close-panel"]').addEventListener('click', closeDayModal);
+  dayModalBackdrop.addEventListener('click', closeDayModal);
   document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    if (!dayPanel.hidden) closePanel(dayPanel);
-    else if (!notebookPanel.hidden) closePanel(notebookPanel);
+    if (e.key === 'Escape' && !dayPanel.hidden) closeDayModal();
   });
 
   document.getElementById('todayLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
   // ---------- view switching ----------
-  var tabBoard = document.getElementById('tabBoard');
-  var tabCalendar = document.getElementById('tabCalendar');
+  var navBoard = document.getElementById('navBoard');
+  var navCalendar = document.getElementById('navCalendar');
+  var navNotes = document.getElementById('navNotes');
   var boardView = document.getElementById('boardView');
   var calendarView = document.getElementById('calendarView');
+  var notesView = document.getElementById('notesView');
   function switchView(view) {
     currentView = view;
-    tabBoard.classList.toggle('active', view === 'board');
-    tabCalendar.classList.toggle('active', view === 'calendar');
+    navBoard.classList.toggle('active', view === 'board');
+    navCalendar.classList.toggle('active', view === 'calendar');
+    navNotes.classList.toggle('active', view === 'notes');
     boardView.hidden = view !== 'board';
     calendarView.hidden = view !== 'calendar';
+    notesView.hidden = view !== 'notes';
     if (view === 'calendar') renderCalendar();
-    else closePanel(dayPanel);
+    else closeDayModal();
   }
-  tabBoard.addEventListener('click', function () { switchView('board'); });
-  tabCalendar.addEventListener('click', function () { switchView('calendar'); });
+  navBoard.addEventListener('click', function () { switchView('board'); });
+  navCalendar.addEventListener('click', function () { switchView('calendar'); });
+  navNotes.addEventListener('click', function () { switchView('notes'); });
 
   // ---------- calendar navigation ----------
   document.getElementById('calPrev').addEventListener('click', function () {
@@ -1424,7 +1325,7 @@
     var d = new Date(selectedDate + 'T00:00:00');
     calViewDate = new Date(d.getFullYear(), d.getMonth(), 1);
     renderCalendar();
-    openPanel(dayPanel);
+    openDayModal();
   });
 
   // ---------- appointments ----------
