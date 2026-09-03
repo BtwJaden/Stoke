@@ -677,6 +677,11 @@
       <span class="settings-row-title">Per-habit reminders</span>
       <p class="settings-note">Tap the bell icon next to any habit on your Board to set its own reminder time.</p>
     </div>
+
+    <div class="settings-section">
+      <span class="settings-row-title">Diagnostics</span>
+      <pre class="settings-note" id="diagInfo" style="text-align:left; white-space:pre-wrap; font-family:var(--font-mono); margin:0;">Loading...</pre>
+    </div>
   </main>
 </div>
 
@@ -1455,6 +1460,9 @@
   var allInOneTimeRow = document.getElementById('allInOneTimeRow');
   var allInOneTimeInput = document.getElementById('allInOneTime');
 
+  var lastNotifError = '';
+  var diagInfo = document.getElementById('diagInfo');
+
   function renderSettings() {
     var ready = !!oneSignal;
     var optedIn = ready && oneSignal.User.PushSubscription.optedIn;
@@ -1475,6 +1483,19 @@
     allInOneToggle.setAttribute('aria-checked', String(state.notifications.allInOne.enabled));
     allInOneTimeRow.hidden = !state.notifications.allInOne.enabled;
     allInOneTimeInput.value = state.notifications.allInOne.time || '20:00';
+
+    if (diagInfo) {
+      var lines = [];
+      lines.push('SDK ready: ' + ready);
+      lines.push('Notification.permission: ' + (('Notification' in window) ? Notification.permission : 'n/a'));
+      if (ready) {
+        lines.push('optedIn: ' + oneSignal.User.PushSubscription.optedIn);
+        lines.push('subscription id: ' + (oneSignal.User.PushSubscription.id || '(none)'));
+        lines.push('push token: ' + (oneSignal.User.PushSubscription.token ? 'present' : '(none)'));
+      }
+      lines.push('last error: ' + (lastNotifError || '(none)'));
+      diagInfo.textContent = lines.join('\n');
+    }
   }
 
   notifMasterToggle.addEventListener('click', function () {
@@ -1485,11 +1506,17 @@
         state.notifications.enabled = false;
         saveState();
         renderSettings();
+      }).catch(function (err) {
+        lastNotifError = 'optOut: ' + String(err);
+        renderSettings();
       });
     } else {
       oneSignal.User.PushSubscription.optIn().then(function () {
         state.notifications.enabled = !!oneSignal.User.PushSubscription.optedIn;
         saveState();
+        renderSettings();
+      }).catch(function (err) {
+        lastNotifError = 'optIn: ' + String(err);
         renderSettings();
       });
     }
