@@ -1,11 +1,13 @@
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-var CACHE_NAME = 'stoke-cache-v1';
+var CACHE_NAME = 'stoke-cache-v2';
 var APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
   './icons/icon-192.png',
+  './icons/icon-256.png',
+  './icons/icon-384.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png'
