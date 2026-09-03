@@ -127,7 +127,7 @@
   /* ---------- board ---------- */
   .board { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; max-width: 980px; margin: 0 auto; }
   @media (max-width: 720px) { .board { grid-template-columns: 1fr; } }
-  .board[hidden], .calendar-view[hidden], .notes-view[hidden] { display: none; }
+  .board[hidden], .calendar-view[hidden], .notes-view[hidden], .settings-view[hidden] { display: none; }
 
   .column {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -246,6 +246,43 @@
   .notes-view { display: flex; flex-direction: column; gap: 16px; max-width: 700px; margin: 0 auto; width: 100%; }
   .notes-list { display: flex; flex-direction: column; gap: 14px; }
 
+  /* ---------- settings page ---------- */
+  .settings-view { display: flex; flex-direction: column; gap: 20px; max-width: 600px; margin: 0 auto; width: 100%; }
+  .settings-section {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px;
+  }
+  .settings-section.disabled { opacity: 0.5; pointer-events: none; }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .settings-row-text { display: flex; flex-direction: column; gap: 2px; }
+  .settings-row-title { font-weight: 600; font-size: 0.92rem; }
+  .settings-row-desc { font-size: 0.78rem; color: var(--text-muted); }
+  .settings-time-row { display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .settings-note {
+    font-size: 0.78rem; color: var(--text-muted); border: 1px dashed var(--border);
+    border-radius: var(--radius-md); padding: 12px; text-align: center;
+  }
+  .settings-warning {
+    font-size: 0.8rem; color: var(--danger); background: rgba(184,75,60,0.1);
+    border: 1px solid var(--danger); border-radius: var(--radius-md); padding: 10px 12px;
+  }
+
+  .toggle-switch {
+    width: 44px; height: 26px; border-radius: 999px; background: var(--border); border: none;
+    position: relative; cursor: pointer; flex: none; padding: 0; transition: background 0.2s ease;
+  }
+  .toggle-switch .toggle-knob {
+    position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform 0.2s ease;
+  }
+  .toggle-switch.on { background: var(--ember); }
+  .toggle-switch.on .toggle-knob { transform: translateX(18px); }
+
+  .reminder-badge { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink); white-space: nowrap; }
+  .reminder-badge svg { width: 11px; height: 11px; }
+  .icon-btn.has-reminder { color: var(--ink); }
+  .reminder-area { margin-top: 8px; }
+
   /* ---------- modal sheet (day details) ---------- */
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(10,8,5,0.45); z-index: 38;
@@ -290,7 +327,8 @@
 
   .habit-main { flex: 1; min-width: 0; }
   .habit-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .habit-name { font-weight: 600; font-size: 0.92rem; overflow-wrap: anywhere; }
+  .reminder-meta { margin-top: 4px; }
+  .habit-name { font-weight: 600; font-size: 0.92rem; overflow-wrap: break-word; }
   .habit-name-input {
     flex: 1; min-width: 0; font-family: inherit; font-weight: 600; font-size: 0.92rem; color: var(--text);
     background: var(--surface); border: 1px solid var(--ink); border-radius: 6px; padding: 3px 7px;
@@ -504,6 +542,16 @@
       <path d="M4 5 C4 4.4 4.6 4 5.5 4 L12 4 L12 19 L5.5 19 C4.6 19 4 18.6 4 18 Z"/>
       <path d="M20 5 C20 4.4 19.4 4 18.5 4 L12 4 L12 19 L18.5 19 C19.4 19 20 18.6 20 18 Z"/>
     </symbol>
+    <symbol id="icon-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 10 C6 6.5 8.5 4 12 4 C15.5 4 18 6.5 18 10 C18 14 19.5 15.5 19.5 16.5 L4.5 16.5 C4.5 15.5 6 14 6 10 Z"/>
+      <path d="M10 19.5 C10 20.6 10.9 21.5 12 21.5 C13.1 21.5 14 20.6 14 19.5"/>
+    </symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 6 L14 6 M18 6 L20 6 M4 12 L6 12 M10 12 L20 12 M4 18 L14 18 M18 18 L20 18"/>
+      <circle cx="16" cy="6" r="2"/>
+      <circle cx="8" cy="12" r="2"/>
+      <circle cx="16" cy="18" r="2"/>
+    </symbol>
   </defs>
 </svg>
 
@@ -587,6 +635,48 @@
     <div class="notes-list" id="noteCards"></div>
     <button class="add-note-btn" id="addNoteBtn"><svg><use href="#icon-plus"/></svg> New note</button>
   </main>
+
+  <main class="settings-view" id="settingsView" hidden>
+    <div class="column-head"><h2>Settings</h2></div>
+    <p class="column-hint">Choose how you want to be reminded.</p>
+
+    <div class="settings-section">
+      <div class="settings-row">
+        <div class="settings-row-text">
+          <span class="settings-row-title">Notifications</span>
+          <span class="settings-row-desc">Allow Stoke to send you reminders.</span>
+        </div>
+        <button type="button" class="toggle-switch" id="notifMasterToggle" role="switch" aria-checked="false" aria-label="Toggle notifications">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+      <p class="settings-warning" id="notifBlockedWarning" hidden>Notifications are blocked for Stoke. Enable them in your phone's system Settings app to use reminders.</p>
+    </div>
+
+    <div class="settings-section" id="allInOneSection">
+      <div class="settings-row">
+        <div class="settings-row-text">
+          <span class="settings-row-title">Daily check-in reminder</span>
+          <span class="settings-row-desc">One reminder covering everything, on top of any per-habit reminders below.</span>
+        </div>
+        <button type="button" class="toggle-switch" id="allInOneToggle" role="switch" aria-checked="false" aria-label="Toggle daily check-in reminder">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+      <div class="settings-time-row" id="allInOneTimeRow" hidden>
+        <div class="time-field">
+          <label for="allInOneTime">Remind me at</label>
+          <input type="time" id="allInOneTime" value="20:00">
+          <svg class="field-icon" aria-hidden="true"><use href="#icon-bell"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <span class="settings-row-title">Per-habit reminders</span>
+      <p class="settings-note">Tap the bell icon next to any habit on your Board to set its own reminder time.</p>
+    </div>
+  </main>
 </div>
 
 <nav class="bottom-nav">
@@ -598,6 +688,9 @@
   </button>
   <button class="nav-tab" id="navNotes" data-view="notes" aria-label="Notes">
     <svg><use href="#icon-book"/></svg><span>Notes</span>
+  </button>
+  <button class="nav-tab" id="navSettings" data-view="settings" aria-label="Settings">
+    <svg><use href="#icon-settings"/></svg><span>Settings</span>
   </button>
 </nav>
 
@@ -703,6 +796,8 @@
     if (!state.notes) state.notes = [];
     if (!state.habits) state.habits = [];
     if (!state.tasks) state.tasks = [];
+    if (!state.notifications) state.notifications = { enabled: false, allInOne: { enabled: false, time: '20:00' } };
+    if (!state.notifications.allInOne) state.notifications.allInOne = { enabled: false, time: '20:00' };
     state.notes.forEach(function (n) { if (!n.createdAt) n.createdAt = n.updatedAt || Date.now(); });
     state.habits.forEach(function (h) { if (h.note && !h.noteCreatedAt) h.noteCreatedAt = h.noteUpdatedAt = Date.now(); });
     state.tasks.forEach(function (t) { if (t.note && !t.noteCreatedAt) t.noteCreatedAt = t.noteUpdatedAt = Date.now(); });
@@ -805,17 +900,29 @@
       var nameMarkup = editing
         ? '<input type="text" class="habit-name-input" data-action="habit-name-input" value="' + escapeAttr(h.name) + '" maxlength="60">'
         : '<span class="habit-name">' + escapeHtml(h.name) + '</span>';
+      var reminderBadge = h.reminderTime
+        ? '<span class="reminder-badge" title="Daily reminder"><svg><use href="#icon-bell"/></svg>' + formatTime12(h.reminderTime) + '</span>'
+        : '';
 
       li.innerHTML =
         '<button class="flame-btn" data-action="toggle-habit" aria-pressed="' + doneToday + '" aria-label="Mark ' + escapeAttr(h.name) + ' done for today"><svg><use href="#icon-flame"/></svg></button>' +
         '<div class="habit-main">' +
           '<div class="habit-row">' + nameMarkup + '<span class="streak-count' + (streak === 0 ? ' zero' : '') + '">' + streak + (streak === 1 ? ' day' : ' days') + '</span></div>' +
+          (reminderBadge ? '<div class="reminder-meta">' + reminderBadge + '</div>' : '') +
           '<div class="heat-row">' + heat + '</div>' +
+          '<div class="reminder-area"' + (h.reminderOpen ? '' : ' hidden') + '>' +
+            '<div class="time-field">' +
+              '<label for="habit-reminder-' + h.id + '">Remind</label>' +
+              '<input type="time" id="habit-reminder-' + h.id + '" data-action="habit-reminder-time" value="' + escapeAttr(h.reminderTime || '') + '">' +
+              '<svg class="field-icon" aria-hidden="true"><use href="#icon-bell"/></svg>' +
+            '</div>' +
+          '</div>' +
           '<div class="note-area"' + (h.noteOpen ? '' : ' hidden') + '><textarea data-action="habit-note" placeholder="Notes for this habit...">' + escapeHtml(h.note || '') + '</textarea>' +
             noteTimestampBlock(h.noteCreatedAt, h.noteUpdatedAt, 'habit-note') + '</div>' +
         '</div>' +
         '<div class="item-actions">' +
           '<button class="icon-btn" data-action="toggle-edit" aria-label="Rename habit"><svg><use href="#icon-edit"/></svg></button>' +
+          '<button class="icon-btn' + (h.reminderTime ? ' has-reminder' : '') + '" data-action="toggle-reminder" aria-label="Set reminder"><svg><use href="#icon-bell"/></svg></button>' +
           '<button class="icon-btn" data-action="toggle-note" aria-label="Toggle note"><svg><use href="#icon-note"/></svg></button>' +
           '<button class="icon-btn danger" data-action="delete-habit" aria-label="Delete habit"><svg><use href="#icon-x"/></svg></button>' +
         '</div>';
@@ -1066,6 +1173,7 @@
     renderNotes();
     renderStatus();
     renderCalendar();
+    renderSettings();
   }
 
   // ---------- events ----------
@@ -1074,7 +1182,7 @@
     var input = document.getElementById('habitInput');
     var name = input.value.trim();
     if (!name) return;
-    state.habits.push({ id: uid(), name: name, note: '', noteOpen: false, history: [], createdAt: Date.now() });
+    state.habits.push({ id: uid(), name: name, note: '', noteOpen: false, history: [], reminderTime: '', reminderOpen: false, createdAt: Date.now() });
     input.value = '';
     saveState();
     renderAll();
@@ -1114,6 +1222,9 @@
       renderHabits();
     } else if (action === 'toggle-edit') {
       habitEditing[habit.id] = !habitEditing[habit.id];
+      renderHabits();
+    } else if (action === 'toggle-reminder') {
+      habit.reminderOpen = !habit.reminderOpen;
       renderHabits();
     } else if (action === 'delete-habit') {
       state.habits = state.habits.filter(function (h) { return h.id !== habit.id; });
@@ -1161,6 +1272,16 @@
     }
     saveState();
     updateNoteTimestamp(li, habit.noteCreatedAt, habit.noteUpdatedAt, 'habit-note');
+  });
+
+  habitList.addEventListener('change', function (e) {
+    if (e.target.dataset.action !== 'habit-reminder-time') return;
+    var li = e.target.closest('li.habit-tile');
+    var habit = state.habits.find(function (h) { return h.id === li.dataset.id; });
+    if (!habit) return;
+    habit.reminderTime = e.target.value || '';
+    saveState();
+    renderHabits();
   });
 
   taskList.addEventListener('click', function (e) {
@@ -1285,23 +1406,84 @@
   var navBoard = document.getElementById('navBoard');
   var navCalendar = document.getElementById('navCalendar');
   var navNotes = document.getElementById('navNotes');
+  var navSettings = document.getElementById('navSettings');
   var boardView = document.getElementById('boardView');
   var calendarView = document.getElementById('calendarView');
   var notesView = document.getElementById('notesView');
+  var settingsView = document.getElementById('settingsView');
   function switchView(view) {
     currentView = view;
     navBoard.classList.toggle('active', view === 'board');
     navCalendar.classList.toggle('active', view === 'calendar');
     navNotes.classList.toggle('active', view === 'notes');
+    navSettings.classList.toggle('active', view === 'settings');
     boardView.hidden = view !== 'board';
     calendarView.hidden = view !== 'calendar';
     notesView.hidden = view !== 'notes';
+    settingsView.hidden = view !== 'settings';
     if (view === 'calendar') renderCalendar();
     else closeDayModal();
+    if (view === 'settings') renderSettings();
   }
   navBoard.addEventListener('click', function () { switchView('board'); });
   navCalendar.addEventListener('click', function () { switchView('calendar'); });
   navNotes.addEventListener('click', function () { switchView('notes'); });
+  navSettings.addEventListener('click', function () { switchView('settings'); });
+
+  // ---------- settings ----------
+  var notifMasterToggle = document.getElementById('notifMasterToggle');
+  var notifBlockedWarning = document.getElementById('notifBlockedWarning');
+  var allInOneSection = document.getElementById('allInOneSection');
+  var allInOneToggle = document.getElementById('allInOneToggle');
+  var allInOneTimeRow = document.getElementById('allInOneTimeRow');
+  var allInOneTimeInput = document.getElementById('allInOneTime');
+
+  function renderSettings() {
+    var supported = 'Notification' in window;
+    var permission = supported ? Notification.permission : 'denied';
+    var enabled = supported && state.notifications.enabled && permission === 'granted';
+    notifMasterToggle.classList.toggle('on', enabled);
+    notifMasterToggle.setAttribute('aria-checked', String(enabled));
+    notifBlockedWarning.hidden = permission !== 'denied';
+    allInOneSection.classList.toggle('disabled', !enabled);
+    allInOneToggle.classList.toggle('on', state.notifications.allInOne.enabled);
+    allInOneToggle.setAttribute('aria-checked', String(state.notifications.allInOne.enabled));
+    allInOneTimeRow.hidden = !state.notifications.allInOne.enabled;
+    allInOneTimeInput.value = state.notifications.allInOne.time || '20:00';
+  }
+
+  notifMasterToggle.addEventListener('click', function () {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'denied') { renderSettings(); return; }
+    if (state.notifications.enabled) {
+      state.notifications.enabled = false;
+      saveState();
+      renderSettings();
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      state.notifications.enabled = true;
+      saveState();
+      renderSettings();
+    } else {
+      Notification.requestPermission().then(function (result) {
+        state.notifications.enabled = (result === 'granted');
+        saveState();
+        renderSettings();
+      });
+    }
+  });
+
+  allInOneToggle.addEventListener('click', function () {
+    state.notifications.allInOne.enabled = !state.notifications.allInOne.enabled;
+    saveState();
+    renderSettings();
+  });
+
+  allInOneTimeInput.addEventListener('change', function () {
+    state.notifications.allInOne.time = allInOneTimeInput.value || '20:00';
+    saveState();
+  });
 
   // ---------- calendar navigation ----------
   document.getElementById('calPrev').addEventListener('click', function () {
