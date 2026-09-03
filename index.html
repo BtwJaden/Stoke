@@ -460,6 +460,20 @@
     .task-add input[type="text"] { flex-basis: 100%; }
     .task-add .date-field { flex: 1; }
     .task-add .date-field input[type="date"] { width: auto; }
+
+    /* iOS Safari zooms in on focus for any field under 16px - keep every field at/above that on mobile */
+    .add-row input[type="text"],
+    .event-add input[type="text"],
+    .date-field input[type="date"],
+    .time-field input[type="time"],
+    .habit-name-input,
+    .task-text-input,
+    .event-title-input,
+    .note-area textarea,
+    .note-title,
+    .note-body {
+      font-size: 16px;
+    }
   }
 </style>
 </head>
