@@ -87,6 +87,7 @@
     color: var(--text);
     font-family: var(--font-body);
     min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   .app { max-width: 1320px; margin: 0 auto; padding: 28px 20px 80px; }
 
@@ -234,9 +235,14 @@
     flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
     padding: 8px 10px; font-family: var(--font-body); font-size: 0.84rem; color: var(--text);
   }
-  .event-add input[type="time"] {
-    flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    padding: 7px 8px; font-family: var(--font-body); font-size: 0.78rem; color: var(--text); color-scheme: light dark;
+  .time-field {
+    display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 6px 0 9px;
+  }
+  .time-field label { font-family: var(--font-mono); font-size: 0.64rem; color: var(--text-muted); white-space: nowrap; flex: none; }
+  .time-field input[type="time"] {
+    flex: 1; min-width: 0; background: transparent; border: none;
+    padding: 7px 0; font-family: var(--font-body); font-size: 0.78rem; color: var(--text); color-scheme: light dark;
   }
   .event-add .add-submit { align-self: flex-end; background: var(--ink); }
 
@@ -344,12 +350,23 @@
 
   /* ---------- add forms ---------- */
   .add-row { display: flex; gap: 6px; margin-top: 12px; }
-  .add-row input[type="text"], .add-row input[type="date"] {
+  .add-row input[type="text"] {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
     padding: 8px 10px; font-family: var(--font-body); font-size: 0.84rem; color: var(--text);
+    flex: 1; min-width: 0;
   }
-  .add-row input[type="text"] { flex: 1; min-width: 0; }
-  .add-row input[type="date"] { flex: none; width: 122px; color-scheme: light dark; }
+  .date-field {
+    display: flex; align-items: center; gap: 6px; flex: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 0 8px 0 10px;
+  }
+  .date-field label {
+    font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; flex: none;
+  }
+  .date-field input[type="date"] {
+    border: none; background: transparent; padding: 8px 0; flex: 1; width: 108px; min-width: 0;
+    font-family: var(--font-body); font-size: 0.84rem; color: var(--text); color-scheme: light dark;
+  }
   .add-submit {
     flex: none; width: 34px; height: 34px; border-radius: var(--radius-sm); border: none;
     background: var(--text); color: var(--bg); display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -426,6 +443,9 @@
       max-width: 100vw; max-height: 100vh; border-radius: 0; border: none;
     }
     .floating-resize { display: none; }
+    .floating-header { padding-top: max(12px, env(safe-area-inset-top)); }
+    .floating-body { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+    .add-note-btn { margin-bottom: max(16px, env(safe-area-inset-bottom)); }
 
     .icon-btn { width: 30px; height: 30px; }
     .flame-btn { width: 42px; height: 42px; }
@@ -433,7 +453,8 @@
 
     .task-add { flex-wrap: wrap; }
     .task-add input[type="text"] { flex-basis: 100%; }
-    .task-add input[type="date"] { flex: 1; width: auto; }
+    .task-add .date-field { flex: 1; }
+    .task-add .date-field input[type="date"] { width: auto; }
   }
 </style>
 </head>
@@ -532,7 +553,10 @@
       <ul class="item-list" id="taskList"></ul>
       <form class="add-row task-add" id="taskForm">
         <input type="text" id="taskInput" placeholder="Add a task" maxlength="80" required>
-        <input type="date" id="taskDate">
+        <div class="date-field">
+          <label for="taskDate">Due</label>
+          <input type="date" id="taskDate">
+        </div>
         <button type="submit" class="add-submit"><svg><use href="#icon-plus"/></svg></button>
       </form>
     </section>
@@ -584,8 +608,14 @@
     <form class="event-add" id="eventForm">
       <input type="text" id="eventTitle" placeholder="Add an appointment or event" maxlength="80" required>
       <div class="event-add-row">
-        <input type="time" id="eventStart" aria-label="Start time">
-        <input type="time" id="eventEnd" aria-label="End time">
+        <div class="time-field">
+          <label for="eventStart">Start</label>
+          <input type="time" id="eventStart">
+        </div>
+        <div class="time-field">
+          <label for="eventEnd">End</label>
+          <input type="time" id="eventEnd">
+        </div>
         <button type="submit" class="add-submit"><svg><use href="#icon-plus"/></svg></button>
       </div>
     </form>
