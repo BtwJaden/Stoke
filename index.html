@@ -759,6 +759,13 @@
     });
   });
 
+  window.addEventListener('unhandledrejection', function (event) {
+    var msg = String(event && event.reason);
+    if (msg.indexOf('Can only be used on') !== -1) return;
+    lastNotifError = 'unhandled: ' + msg;
+    if (typeof renderSettings === 'function') renderSettings();
+  });
+
   function uid() {
     return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   }
@@ -1486,6 +1493,8 @@
 
     if (diagInfo) {
       var lines = [];
+      var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      lines.push('standalone mode: ' + standalone);
       lines.push('SDK ready: ' + ready);
       lines.push('Notification.permission: ' + (('Notification' in window) ? Notification.permission : 'n/a'));
       if (ready) {
@@ -1494,7 +1503,44 @@
         lines.push('push token: ' + (oneSignal.User.PushSubscription.token ? 'present' : '(none)'));
       }
       lines.push('last error: ' + (lastNotifError || '(none)'));
+      lines.push('sw registration: checking...');
+      lines.push('raw push subscription: checking...');
       diagInfo.textContent = lines.join('\n');
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          var regLine;
+          if (!regs.length) {
+            regLine = 'sw registration: none found';
+          } else {
+            regLine = 'sw registration: ' + regs.map(function (r) {
+              var w = r.active || r.installing || r.waiting;
+              return r.scope + ' (' + (w ? w.state : 'no worker') + ')';
+            }).join(', ');
+          }
+          var text = diagInfo.textContent.split('\n');
+          var idx = text.findIndex(function (l) { return l.indexOf('sw registration:') === 0; });
+          if (idx !== -1) { text[idx] = regLine; diagInfo.textContent = text.join('\n'); }
+
+          var mainReg = regs.find(function (r) { return r.scope.indexOf('/Stoke/') !== -1; }) || regs[0];
+          if (mainReg && mainReg.pushManager) {
+            mainReg.pushManager.getSubscription().then(function (sub) {
+              var pushLine = 'raw push subscription: ' + (sub ? ('endpoint present (' + sub.endpoint.slice(0, 40) + '...)') : '(none)');
+              var t2 = diagInfo.textContent.split('\n');
+              var i2 = t2.findIndex(function (l) { return l.indexOf('raw push subscription:') === 0; });
+              if (i2 !== -1) { t2[i2] = pushLine; diagInfo.textContent = t2.join('\n'); }
+            }).catch(function (err) {
+              var t2 = diagInfo.textContent.split('\n');
+              var i2 = t2.findIndex(function (l) { return l.indexOf('raw push subscription:') === 0; });
+              if (i2 !== -1) { t2[i2] = 'raw push subscription error: ' + String(err); diagInfo.textContent = t2.join('\n'); }
+            });
+          } else {
+            var t3 = diagInfo.textContent.split('\n');
+            var i3 = t3.findIndex(function (l) { return l.indexOf('raw push subscription:') === 0; });
+            if (i3 !== -1) { t3[i3] = 'raw push subscription: no registration to check'; diagInfo.textContent = t3.join('\n'); }
+          }
+        });
+      }
     }
   }
 
