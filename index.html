@@ -749,8 +749,8 @@
   window.OneSignalDeferred.push(function (OneSignal) {
     OneSignal.init({
       appId: ONESIGNAL_APP_ID,
-      serviceWorkerPath: 'push/onesignal/OneSignalSDKWorker.js',
-      serviceWorkerParam: { scope: '/Stoke/push/onesignal/' }
+      serviceWorkerPath: 'sw.js',
+      serviceWorkerParam: { scope: '/Stoke/' }
     }).then(function () {
       oneSignal = OneSignal;
       if (typeof renderSettings === 'function') renderSettings();

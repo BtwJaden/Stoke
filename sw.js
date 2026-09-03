@@ -1,3 +1,5 @@
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+
 var CACHE_NAME = 'stoke-cache-v1';
 var APP_SHELL = [
   './',
