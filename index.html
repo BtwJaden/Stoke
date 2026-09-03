@@ -754,6 +754,7 @@
     }).then(function () {
       oneSignal = OneSignal;
       if (typeof renderSettings === 'function') renderSettings();
+      if (typeof syncReminders === 'function') syncReminders();
     }).catch(function () {
       oneSignal = null;
     });
@@ -1311,6 +1312,7 @@
     habit.reminderTime = e.target.value || '';
     saveState();
     renderHabits();
+    syncReminders();
   });
 
   taskList.addEventListener('click', function (e) {
@@ -1469,6 +1471,27 @@
 
   var lastNotifError = '';
   var diagInfo = document.getElementById('diagInfo');
+  var WORKER_SYNC_URL = 'https://stoke-reminders.hellojaden23.workers.dev/sync';
+
+  function syncReminders() {
+    if (!oneSignal) return;
+    var subscriptionId = oneSignal.User.PushSubscription.id;
+    if (!subscriptionId) return;
+    var timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var habits = state.habits
+      .filter(function (h) { return h.reminderTime; })
+      .map(function (h) { return { id: h.id, name: h.name, time: h.reminderTime }; });
+    fetch(WORKER_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subscriptionId: subscriptionId,
+        timezone: timezone,
+        allInOne: state.notifications.allInOne,
+        habits: habits
+      })
+    }).catch(function () {});
+  }
 
   function renderSettings() {
     var ready = !!oneSignal;
@@ -1561,6 +1584,7 @@
         state.notifications.enabled = !!oneSignal.User.PushSubscription.optedIn;
         saveState();
         renderSettings();
+        syncReminders();
       }).catch(function (err) {
         lastNotifError = 'optIn: ' + String(err);
         renderSettings();
@@ -1572,11 +1596,13 @@
     state.notifications.allInOne.enabled = !state.notifications.allInOne.enabled;
     saveState();
     renderSettings();
+    syncReminders();
   });
 
   allInOneTimeInput.addEventListener('change', function () {
     state.notifications.allInOne.time = allInOneTimeInput.value || '20:00';
     saveState();
+    syncReminders();
   });
 
   // ---------- calendar navigation ----------
