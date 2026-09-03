@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Stoke">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <style>
   :root {
     --bg: #EEF0EF;
@@ -736,6 +737,22 @@
 <script>
 (function () {
   var STORAGE_KEY = 'stoke_app_v1';
+  var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
+  var oneSignal = null;
+
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(function (OneSignal) {
+    OneSignal.init({
+      appId: ONESIGNAL_APP_ID,
+      serviceWorkerPath: 'push/onesignal/OneSignalSDKWorker.js',
+      serviceWorkerParam: { scope: '/Stoke/push/onesignal/' }
+    }).then(function () {
+      oneSignal = OneSignal;
+      if (typeof renderSettings === 'function') renderSettings();
+    }).catch(function () {
+      oneSignal = null;
+    });
+  });
 
   function uid() {
     return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -1439,13 +1456,21 @@
   var allInOneTimeInput = document.getElementById('allInOneTime');
 
   function renderSettings() {
-    var supported = 'Notification' in window;
-    var permission = supported ? Notification.permission : 'denied';
-    var enabled = supported && state.notifications.enabled && permission === 'granted';
-    notifMasterToggle.classList.toggle('on', enabled);
-    notifMasterToggle.setAttribute('aria-checked', String(enabled));
-    notifBlockedWarning.hidden = permission !== 'denied';
-    allInOneSection.classList.toggle('disabled', !enabled);
+    var ready = !!oneSignal;
+    var optedIn = ready && oneSignal.User.PushSubscription.optedIn;
+    notifMasterToggle.classList.toggle('on', !!optedIn);
+    notifMasterToggle.setAttribute('aria-checked', String(!!optedIn));
+    var blocked = ('Notification' in window) && Notification.permission === 'denied';
+    if (blocked) {
+      notifBlockedWarning.textContent = "Notifications are blocked for Stoke. Enable them in your phone's system Settings app to use reminders.";
+      notifBlockedWarning.hidden = false;
+    } else if (!ready) {
+      notifBlockedWarning.textContent = 'Setting up notifications... try again in a moment.';
+      notifBlockedWarning.hidden = false;
+    } else {
+      notifBlockedWarning.hidden = true;
+    }
+    allInOneSection.classList.toggle('disabled', !optedIn);
     allInOneToggle.classList.toggle('on', state.notifications.allInOne.enabled);
     allInOneToggle.setAttribute('aria-checked', String(state.notifications.allInOne.enabled));
     allInOneTimeRow.hidden = !state.notifications.allInOne.enabled;
@@ -1453,21 +1478,17 @@
   }
 
   notifMasterToggle.addEventListener('click', function () {
-    if (!('Notification' in window)) return;
-    if (Notification.permission === 'denied') { renderSettings(); return; }
-    if (state.notifications.enabled) {
-      state.notifications.enabled = false;
-      saveState();
-      renderSettings();
-      return;
-    }
-    if (Notification.permission === 'granted') {
-      state.notifications.enabled = true;
-      saveState();
-      renderSettings();
+    if (!oneSignal) { renderSettings(); return; }
+    if (('Notification' in window) && Notification.permission === 'denied') { renderSettings(); return; }
+    if (oneSignal.User.PushSubscription.optedIn) {
+      oneSignal.User.PushSubscription.optOut().then(function () {
+        state.notifications.enabled = false;
+        saveState();
+        renderSettings();
+      });
     } else {
-      Notification.requestPermission().then(function (result) {
-        state.notifications.enabled = (result === 'granted');
+      oneSignal.User.PushSubscription.optIn().then(function () {
+        state.notifications.enabled = !!oneSignal.User.PushSubscription.optedIn;
         saveState();
         renderSettings();
       });
