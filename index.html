@@ -806,6 +806,12 @@
     d.setDate(d.getDate() - n);
     return isoFromDate(d);
   }
+  function isTaskArchived(t) {
+    return !!(t.done && t.completedAt && isoFromDate(new Date(t.completedAt)) !== todayISO());
+  }
+  function activeTasks() {
+    return state.tasks.filter(function (t) { return !isTaskArchived(t); });
+  }
   function formatTimestamp(ts) {
     var d = new Date(ts);
     var now = new Date();
@@ -990,13 +996,14 @@
   }
 
   function renderTasks() {
-    document.getElementById('taskCount').textContent = state.tasks.length;
+    var visibleTasks = activeTasks();
+    document.getElementById('taskCount').textContent = visibleTasks.length;
     taskList.innerHTML = '';
-    if (!state.tasks.length) {
+    if (!visibleTasks.length) {
       taskList.innerHTML = '<li class="empty-state">All clear. Nothing left to stoke.</li>';
       return;
     }
-    var sorted = state.tasks.slice().sort(function (a, b) {
+    var sorted = visibleTasks.slice().sort(function (a, b) {
       if (a.done !== b.done) return a.done ? 1 : -1;
       if (a.dueDate && b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
       if (a.dueDate) return -1;
@@ -1181,7 +1188,8 @@
 
   function renderStatus() {
     var habitPct = state.habits.length ? state.habits.filter(function (h) { return h.history.indexOf(todayISO()) !== -1; }).length / state.habits.length : null;
-    var taskPct = state.tasks.length ? state.tasks.filter(function (t) { return t.done; }).length / state.tasks.length : null;
+    var statusTasks = activeTasks();
+    var taskPct = statusTasks.length ? statusTasks.filter(function (t) { return t.done; }).length / statusTasks.length : null;
     var parts = [];
     if (habitPct !== null) parts.push(habitPct);
     if (taskPct !== null) parts.push(taskPct);
