@@ -118,7 +118,7 @@
   .momentum-title { font-size: 0.82rem; font-weight: 600; }
   .momentum-sub { font-size: 0.74rem; color: var(--text-muted); max-width: 140px; }
 
-  .level-badge { display: flex; flex-direction: column; gap: 4px; min-width: 84px; }
+  .level-badge { display: flex; flex-direction: column; gap: 4px; min-width: 84px; background: none; border: none; padding: 0; font: inherit; text-align: left; cursor: pointer; }
   .level-top { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-mono); }
   .level-top .lv-num { font-size: 1.05rem; font-weight: 600; color: var(--ember); }
   .level-top .lv-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
@@ -305,6 +305,35 @@
     flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px;
     padding-bottom: max(16px, calc(env(safe-area-inset-bottom) + 12px));
   }
+
+  /* ---------- achievements ---------- */
+  .ach-level-summary {
+    display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--border);
+    border-radius: var(--radius-md); background: var(--surface-2);
+  }
+  .ach-level-summary .level-top { font-size: 1.1rem; }
+  .ach-level-summary .lv-num { font-size: 1.5rem; }
+  .ach-level-summary .xp-bar { width: 100%; height: 6px; }
+  .ach-xp-copy { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); }
+  .ach-grid {
+    list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  .ach-medal {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+    padding: 12px 8px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2);
+  }
+  .ach-medal-icon {
+    width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+  }
+  .ach-medal-icon svg { width: 20px; height: 20px; }
+  .ach-medal.unlocked .ach-medal-icon {
+    color: var(--ember-bright); background: var(--ember-soft); border-color: var(--ember);
+  }
+  .ach-medal.unlocked { border-color: var(--ember); }
+  .ach-medal-name { font-size: 0.72rem; font-weight: 600; }
+  .ach-medal.locked .ach-medal-name { color: var(--text-muted); }
+  .ach-medal-desc { font-size: 0.64rem; color: var(--text-muted); line-height: 1.3; }
 
   /* ---------- habit tile ---------- */
   .habit-tile {
@@ -547,6 +576,15 @@
       <path d="M6 10 C6 6.5 8.5 4 12 4 C15.5 4 18 6.5 18 10 C18 14 19.5 15.5 19.5 16.5 L4.5 16.5 C4.5 15.5 6 14 6 10 Z"/>
       <path d="M10 19.5 C10 20.6 10.9 21.5 12 21.5 C13.1 21.5 14 20.6 14 19.5"/>
     </symbol>
+    <symbol id="icon-medal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 3 L6 10 M16 3 L18 10"/>
+      <circle cx="12" cy="14" r="6.5"/>
+      <path d="M12 10.5 L13.1 13 L15.6 13.3 L13.8 15 L14.3 17.5 L12 16.2 L9.7 17.5 L10.2 15 L8.4 13.3 L10.9 13 Z"/>
+    </symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="5" y="11" width="14" height="9" rx="1.5"/>
+      <path d="M8 11 V7.5 C8 5 9.8 3.2 12 3.2 C14.2 3.2 16 5 16 7.5 V11"/>
+    </symbol>
     <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 6 L14 6 M18 6 L20 6 M4 12 L6 12 M10 12 L20 12 M4 18 L14 18 M18 18 L20 18"/>
       <circle cx="16" cy="6" r="2"/>
@@ -579,10 +617,10 @@
           <span class="momentum-sub" id="momentumCopy">Cold start. Light the first one.</span>
         </div>
       </div>
-      <div class="level-badge">
+      <button type="button" class="level-badge" id="levelBadgeBtn" aria-label="View achievements">
         <div class="level-top"><span class="lv-num" id="levelNum">1</span><span class="lv-label">level</span></div>
         <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
-      </div>
+      </button>
     </div>
   </header>
 
@@ -735,6 +773,25 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="achModalBackdrop" hidden></div>
+<div class="modal-panel" id="achPanel" hidden aria-label="Achievements">
+  <div class="modal-header">
+    <span class="modal-title">Level &amp; Achievements</span>
+    <button class="icon-btn" data-action="close-ach-panel" aria-label="Close achievements"><svg><use href="#icon-x"/></svg></button>
+  </div>
+  <div class="modal-body">
+    <div class="ach-level-summary">
+      <div class="level-top"><span class="lv-num" id="achLevelNum">1</span><span class="lv-label">level</span></div>
+      <div class="xp-bar"><div class="xp-fill" id="achXpFill" style="width:0%"></div></div>
+      <span class="ach-xp-copy" id="achXpCopy"></span>
+    </div>
+    <div class="agenda-section">
+      <span class="agenda-section-label" id="achProgressLabel">Achievements</span>
+      <ul class="ach-grid" id="achGrid"></ul>
+    </div>
+  </div>
+</div>
+
 <div class="celebration" id="celebration" aria-live="polite">
   <div class="celebration-glow"></div>
   <div class="celebration-banner"><svg><use href="#icon-flame"/></svg><span id="celebrationText">Fully stoked today</span></div>
@@ -858,6 +915,9 @@
     if (!state.tasks) state.tasks = [];
     if (!state.notifications) state.notifications = { enabled: false, allInOne: { enabled: false, time: '20:00' } };
     if (!state.notifications.allInOne) state.notifications.allInOne = { enabled: false, time: '20:00' };
+    if (!state.unlockedAchievements) state.unlockedAchievements = [];
+    if (!state.stats) state.stats = { tasksCompletedTotal: 0 };
+    if (typeof state.stats.tasksCompletedTotal !== 'number') state.stats.tasksCompletedTotal = 0;
     state.notes.forEach(function (n) { if (!n.createdAt) n.createdAt = n.updatedAt || Date.now(); });
     state.habits.forEach(function (h) { if (h.note && !h.noteCreatedAt) h.noteCreatedAt = h.noteUpdatedAt = Date.now(); });
     state.tasks.forEach(function (t) { if (t.note && !t.noteCreatedAt) t.noteCreatedAt = t.noteUpdatedAt = Date.now(); });
@@ -878,17 +938,27 @@
   calViewDate.setDate(1);
   var selectedDate = todayISO();
 
+  var STREAK_GRACE_DAYS = 2;
+
   function calcStreak(history) {
     var set = {};
     for (var i = 0; i < history.length; i++) set[history[i]] = true;
     var today = todayISO();
     var streak = 0;
+    var gap = 0;
     var d = new Date();
     if (!set[today]) d.setDate(d.getDate() - 1);
     while (true) {
-      var y = d.getFullYear(), m = ('0' + (d.getMonth() + 1)).slice(-2), day = ('0' + d.getDate()).slice(-2);
-      var key = y + '-' + m + '-' + day;
-      if (set[key]) { streak++; d.setDate(d.getDate() - 1); } else break;
+      var key = isoFromDate(d);
+      if (set[key]) {
+        streak++;
+        gap = 0;
+        d.setDate(d.getDate() - 1);
+      } else {
+        gap++;
+        if (gap > STREAK_GRACE_DAYS || streak === 0) break;
+        d.setDate(d.getDate() - 1);
+      }
     }
     return streak;
   }
@@ -914,6 +984,55 @@
 
   function addXp(amount) {
     state.xp = Math.max(0, state.xp + amount);
+  }
+
+  function maxHabitStreak() {
+    var best = 0;
+    state.habits.forEach(function (h) {
+      var s = calcStreak(h.history);
+      if (s > best) best = s;
+    });
+    return best;
+  }
+
+  var ACHIEVEMENTS = [
+    { id: 'first-spark', name: 'First Spark', desc: 'Check off a habit for the first time.', check: function (ctx) { return ctx.habitCheckoffs >= 1; } },
+    { id: 'streak-3', name: '3-Day Streak', desc: 'Reach a 3-day streak on any habit.', check: function (ctx) { return ctx.maxStreak >= 3; } },
+    { id: 'streak-7', name: 'Week of Fire', desc: 'Reach a 7-day streak on any habit.', check: function (ctx) { return ctx.maxStreak >= 7; } },
+    { id: 'streak-30', name: 'Unstoppable', desc: 'Reach a 30-day streak on any habit.', check: function (ctx) { return ctx.maxStreak >= 30; } },
+    { id: 'streak-100', name: 'Century', desc: 'Reach a 100-day streak on any habit.', check: function (ctx) { return ctx.maxStreak >= 100; } },
+    { id: 'first-task', name: 'First Task', desc: 'Complete your first task.', check: function (ctx) { return ctx.tasksCompletedTotal >= 1; } },
+    { id: 'task-25', name: 'Task Crusher', desc: 'Complete 25 tasks total.', check: function (ctx) { return ctx.tasksCompletedTotal >= 25; } },
+    { id: 'task-100', name: 'Task Master', desc: 'Complete 100 tasks total.', check: function (ctx) { return ctx.tasksCompletedTotal >= 100; } },
+    { id: 'level-5', name: 'Level 5', desc: 'Reach level 5.', check: function (ctx) { return ctx.level >= 5; } },
+    { id: 'level-10', name: 'Level 10', desc: 'Reach level 10.', check: function (ctx) { return ctx.level >= 10; } },
+    { id: 'level-25', name: 'Level 25', desc: 'Reach level 25.', check: function (ctx) { return ctx.level >= 25; } },
+    { id: 'habit-collector', name: 'Habit Collector', desc: 'Have 5 habits going at once.', check: function (ctx) { return ctx.habitsCount >= 5; } },
+    { id: 'note-taker', name: 'Note Taker', desc: 'Write your first note.', check: function (ctx) { return ctx.notesCount >= 1; } },
+    { id: 'well-rounded', name: 'Well Rounded', desc: 'Have a habit, a completed task, and a note all at once.', check: function (ctx) { return ctx.habitsCount >= 1 && ctx.tasksCompletedTotal >= 1 && ctx.notesCount >= 1; } }
+  ];
+
+  function checkAchievements() {
+    var ctx = {
+      habitCheckoffs: state.habits.reduce(function (sum, h) { return sum + h.history.length; }, 0),
+      maxStreak: maxHabitStreak(),
+      tasksCompletedTotal: state.stats.tasksCompletedTotal,
+      level: levelFromXp(state.xp).level,
+      habitsCount: state.habits.length,
+      notesCount: state.notes.length
+    };
+    var newlyUnlocked = [];
+    ACHIEVEMENTS.forEach(function (a) {
+      if (state.unlockedAchievements.indexOf(a.id) === -1 && a.check(ctx)) {
+        state.unlockedAchievements.push(a.id);
+        newlyUnlocked.push(a);
+      }
+    });
+    if (newlyUnlocked.length) {
+      saveState();
+      celebrate(newlyUnlocked.length === 1 ? 'Achievement unlocked: ' + newlyUnlocked[0].name : newlyUnlocked.length + ' achievements unlocked!');
+      if (typeof renderAchievements === 'function') renderAchievements();
+    }
   }
 
   function fmtDue(iso) {
@@ -1221,10 +1340,10 @@
     document.getElementById('xpFill').style.width = Math.round((lvl.into / lvl.need) * 100) + '%';
   }
 
-  function celebrate() {
+  function celebrate(text) {
     var el = document.getElementById('celebration');
     var texts = ['Fully stoked today', 'Everything cleared - nice work', 'The hearth is roaring'];
-    document.getElementById('celebrationText').textContent = texts[Math.floor(Math.random() * texts.length)];
+    document.getElementById('celebrationText').textContent = text || texts[Math.floor(Math.random() * texts.length)];
     el.classList.add('show');
     setTimeout(function () { el.classList.remove('show'); }, 2600);
   }
@@ -1248,6 +1367,7 @@
     input.value = '';
     saveState();
     renderAll();
+    checkAchievements();
   });
 
   document.getElementById('taskForm').addEventListener('submit', function (e) {
@@ -1278,6 +1398,7 @@
       else { habit.history.splice(idx, 1); addXp(-15); }
       saveState();
       renderAll();
+      checkAchievements();
     } else if (action === 'toggle-note') {
       habit.noteOpen = !habit.noteOpen;
       saveState();
@@ -1359,8 +1480,10 @@
       task.done = !task.done;
       task.completedAt = task.done ? Date.now() : null;
       addXp(task.done ? 10 : -10);
+      state.stats.tasksCompletedTotal = Math.max(0, state.stats.tasksCompletedTotal + (task.done ? 1 : -1));
       saveState();
       renderAll();
+      checkAchievements();
     } else if (action === 'toggle-note') {
       task.noteOpen = !task.noteOpen;
       saveState();
@@ -1421,6 +1544,7 @@
     state.notes.push({ id: uid(), title: '', body: '', createdAt: now, updatedAt: now });
     saveState();
     renderNotes();
+    checkAchievements();
     var first = noteCards.querySelector('.note-card .note-title');
     if (first) first.focus();
   });
@@ -1462,6 +1586,45 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !dayPanel.hidden) closeDayModal();
   });
+
+  // ---------- achievements modal ----------
+  var achPanel = document.getElementById('achPanel');
+  var achModalBackdrop = document.getElementById('achModalBackdrop');
+  function openAchModal() {
+    renderAchievements();
+    achModalBackdrop.hidden = false;
+    achPanel.hidden = false;
+  }
+  function closeAchModal() {
+    achModalBackdrop.hidden = true;
+    achPanel.hidden = true;
+  }
+  document.getElementById('levelBadgeBtn').addEventListener('click', openAchModal);
+  achPanel.querySelector('[data-action="close-ach-panel"]').addEventListener('click', closeAchModal);
+  achModalBackdrop.addEventListener('click', closeAchModal);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !achPanel.hidden) closeAchModal();
+  });
+
+  function renderAchievements() {
+    var lvl = levelFromXp(state.xp);
+    document.getElementById('achLevelNum').textContent = lvl.level;
+    document.getElementById('achXpFill').style.width = Math.round((lvl.into / lvl.need) * 100) + '%';
+    document.getElementById('achXpCopy').textContent = lvl.into + ' / ' + lvl.need + ' XP to level ' + (lvl.level + 1);
+
+    var unlockedCount = ACHIEVEMENTS.filter(function (a) { return state.unlockedAchievements.indexOf(a.id) !== -1; }).length;
+    document.getElementById('achProgressLabel').textContent = 'Achievements (' + unlockedCount + ' / ' + ACHIEVEMENTS.length + ')';
+
+    var grid = document.getElementById('achGrid');
+    grid.innerHTML = ACHIEVEMENTS.map(function (a) {
+      var unlocked = state.unlockedAchievements.indexOf(a.id) !== -1;
+      return '<li class="ach-medal ' + (unlocked ? 'unlocked' : 'locked') + '">' +
+        '<span class="ach-medal-icon"><svg><use href="#icon-' + (unlocked ? 'medal' : 'lock') + '"/></svg></span>' +
+        '<span class="ach-medal-name">' + escapeHtml(a.name) + '</span>' +
+        '<span class="ach-medal-desc">' + escapeHtml(a.desc) + '</span>' +
+      '</li>';
+    }).join('');
+  }
 
   document.getElementById('todayLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
@@ -1757,11 +1920,14 @@
     task.done = !task.done;
     task.completedAt = task.done ? Date.now() : null;
     addXp(task.done ? 10 : -10);
+    state.stats.tasksCompletedTotal = Math.max(0, state.stats.tasksCompletedTotal + (task.done ? 1 : -1));
     saveState();
     renderAll();
+    checkAchievements();
   });
 
   renderAll();
+  checkAchievements();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
