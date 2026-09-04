@@ -98,7 +98,10 @@
     gap: 16px; flex-wrap: wrap; margin-bottom: 28px;
   }
   .brand { display: flex; align-items: center; gap: 10px; }
-  .brand svg { width: 26px; height: 26px; color: var(--ember); }
+  .brand svg { width: 26px; height: 26px; color: var(--ember); transition: color 0.4s ease, filter 0.4s ease; }
+  .brand.level-tier-1 svg { color: var(--ember-bright); }
+  .brand.level-tier-2 svg { color: var(--gold); }
+  .brand.level-tier-3 svg { color: var(--gold); filter: drop-shadow(0 0 5px var(--gold)); }
   .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
   .brand-name { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: -0.01em; }
   .brand-date { font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono); }
@@ -596,7 +599,7 @@
 
 <div class="app">
   <header class="topbar">
-    <div class="brand">
+    <div class="brand" id="brandBlock">
       <svg><use href="#icon-flame"/></svg>
       <div class="brand-text">
         <span class="brand-name">Stoke</span>
@@ -1338,6 +1341,12 @@
     var lvl = levelFromXp(state.xp);
     document.getElementById('levelNum').textContent = lvl.level;
     document.getElementById('xpFill').style.width = Math.round((lvl.into / lvl.need) * 100) + '%';
+
+    var brandEl = document.getElementById('brandBlock');
+    brandEl.classList.remove('level-tier-1', 'level-tier-2', 'level-tier-3');
+    if (lvl.level >= 30) brandEl.classList.add('level-tier-3');
+    else if (lvl.level >= 15) brandEl.classList.add('level-tier-2');
+    else if (lvl.level >= 5) brandEl.classList.add('level-tier-1');
   }
 
   function celebrate(text) {
