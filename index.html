@@ -290,6 +290,16 @@
   .settings-row-text { display: flex; flex-direction: column; gap: 2px; }
   .settings-row-title { font-weight: 600; font-size: 0.92rem; }
   .settings-row-desc { font-size: 0.78rem; color: var(--text-muted); }
+  .settings-btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .settings-btn {
+    display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--font-body); font-size: 0.82rem; font-weight: 500;
+    padding: 9px 14px; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .settings-btn:hover { border-color: var(--ink); }
+  .settings-btn svg { width: 15px; height: 15px; }
+  .settings-btn.danger { color: var(--ember); border-color: var(--ember-soft); }
+  .settings-btn.danger:hover { border-color: var(--ember); }
   .settings-time-row { display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
   .settings-note {
     font-size: 0.78rem; color: var(--text-muted); border: 1px dashed var(--border);
@@ -618,6 +628,14 @@
       <rect x="5" y="11" width="14" height="9" rx="1.5"/>
       <path d="M8 11 V7.5 C8 5 9.8 3.2 12 3.2 C14.2 3.2 16 5 16 7.5 V11"/>
     </symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3.5 V15 M7 10.5 L12 15.5 L17 10.5"/>
+      <path d="M4.5 17.5 V19 C4.5 19.8 5.2 20.5 6 20.5 H18 C18.8 20.5 19.5 19.8 19.5 19 V17.5"/>
+    </symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 15.5 V4 M7 8.5 L12 3.5 L17 8.5"/>
+      <path d="M4.5 17.5 V19 C4.5 19.8 5.2 20.5 6 20.5 H18 C18.8 20.5 19.5 19.8 19.5 19 V17.5"/>
+    </symbol>
     <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 6 L14 6 M18 6 L20 6 M4 12 L6 12 M10 12 L20 12 M4 18 L14 18 M18 18 L20 18"/>
       <circle cx="16" cy="6" r="2"/>
@@ -752,6 +770,17 @@
     <div class="settings-section">
       <span class="settings-row-title">Per-habit reminders</span>
       <p class="settings-note">Tap the bell icon next to any habit on your Board to set its own reminder time.</p>
+    </div>
+
+    <div class="settings-section">
+      <span class="settings-row-title">Data</span>
+      <p class="settings-note">Export a backup of everything, or restore from a previous export.</p>
+      <div class="settings-btn-row">
+        <button type="button" class="settings-btn" id="exportDataBtn"><svg><use href="#icon-download"/></svg> Export data</button>
+        <button type="button" class="settings-btn" id="importDataBtn"><svg><use href="#icon-upload"/></svg> Import data</button>
+        <input type="file" id="importDataInput" accept="application/json" hidden>
+      </div>
+      <p class="settings-note" id="dataActionMsg" hidden></p>
     </div>
 
     <div class="settings-section">
@@ -1887,6 +1916,61 @@
 
   var diagRefreshBtn = document.getElementById('diagRefreshBtn');
   if (diagRefreshBtn) diagRefreshBtn.addEventListener('click', function () { renderSettings(); });
+
+  // ---------- data export / import ----------
+  function showDataMsg(text) {
+    var el = document.getElementById('dataActionMsg');
+    el.textContent = text;
+    el.hidden = false;
+    clearTimeout(showDataMsg._t);
+    showDataMsg._t = setTimeout(function () { el.hidden = true; }, 4000);
+  }
+
+  document.getElementById('exportDataBtn').addEventListener('click', function () {
+    var dataStr = JSON.stringify(state, null, 2);
+    var blob = new Blob([dataStr], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'stoke-backup-' + todayISO() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    showDataMsg('Backup downloaded.');
+  });
+
+  var importDataInput = document.getElementById('importDataInput');
+  document.getElementById('importDataBtn').addEventListener('click', function () {
+    importDataInput.click();
+  });
+  importDataInput.addEventListener('change', function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed;
+      try {
+        parsed = JSON.parse(reader.result);
+      } catch (err) {
+        showDataMsg('That file is not valid backup data.');
+        importDataInput.value = '';
+        return;
+      }
+      if (!parsed || !Array.isArray(parsed.habits) || !Array.isArray(parsed.tasks) || !Array.isArray(parsed.notes)) {
+        showDataMsg("That file doesn't look like a Stoke backup.");
+        importDataInput.value = '';
+        return;
+      }
+      if (!window.confirm('This replaces everything currently in Stoke with the backup. Continue?')) {
+        importDataInput.value = '';
+        return;
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      location.reload();
+    };
+    reader.readAsText(file);
+  });
 
   // ---------- calendar navigation ----------
   document.getElementById('calPrev').addEventListener('click', function () {
