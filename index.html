@@ -680,6 +680,7 @@
 
     <div class="settings-section">
       <span class="settings-row-title">Diagnostics</span>
+      <button type="button" id="diagRefreshBtn" style="margin-bottom:8px;">Refresh</button>
       <pre class="settings-note" id="diagInfo" style="text-align:left; white-space:pre-wrap; font-family:var(--font-mono); margin:0;">Loading...</pre>
     </div>
   </main>
@@ -744,6 +745,23 @@
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
+
+  var capturedLogs = [];
+  var MAX_CAPTURED_LOGS = 80;
+  ['log', 'warn', 'error', 'info', 'debug'].forEach(function (method) {
+    var orig = console[method];
+    console[method] = function () {
+      try {
+        var text = Array.prototype.slice.call(arguments).map(function (a) {
+          if (typeof a === 'string') return a;
+          try { return JSON.stringify(a); } catch (e) { return String(a); }
+        }).join(' ');
+        capturedLogs.push('[' + method + '] ' + text);
+        if (capturedLogs.length > MAX_CAPTURED_LOGS) capturedLogs.shift();
+      } catch (e) {}
+      orig.apply(console, arguments);
+    };
+  });
 
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(function (OneSignal) {
@@ -1528,6 +1546,13 @@
       lines.push('last error: ' + (lastNotifError || '(none)'));
       lines.push('sw registration: checking...');
       lines.push('raw push subscription: checking...');
+      lines.push('');
+      lines.push('recent console output:');
+      if (capturedLogs.length) {
+        lines = lines.concat(capturedLogs);
+      } else {
+        lines.push('(none captured yet)');
+      }
       diagInfo.textContent = lines.join('\n');
 
       if ('serviceWorker' in navigator) {
@@ -1604,6 +1629,9 @@
     saveState();
     syncReminders();
   });
+
+  var diagRefreshBtn = document.getElementById('diagRefreshBtn');
+  if (diagRefreshBtn) diagRefreshBtn.addEventListener('click', function () { renderSettings(); });
 
   // ---------- calendar navigation ----------
   document.getElementById('calPrev').addEventListener('click', function () {
