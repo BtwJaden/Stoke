@@ -754,7 +754,13 @@
       try {
         var text = Array.prototype.slice.call(arguments).map(function (a) {
           if (typeof a === 'string') return a;
-          try { return JSON.stringify(a); } catch (e) { return String(a); }
+          if (a instanceof Error) return (a.name || 'Error') + ': ' + a.message + (a.stack ? ' | ' + a.stack : '');
+          try {
+            return JSON.stringify(a, function (k, v) {
+              if (v instanceof Error) return { name: v.name, message: v.message, stack: v.stack };
+              return v;
+            }) || String(a);
+          } catch (e) { return String(a); }
         }).join(' ');
         capturedLogs.push('[' + method + '] ' + text);
         if (capturedLogs.length > MAX_CAPTURED_LOGS) capturedLogs.shift();
