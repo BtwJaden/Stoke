@@ -1764,6 +1764,7 @@
       delete habitEditing[habit.id];
       saveState();
       renderAll();
+      syncReminders();
     }
   });
 
@@ -1774,7 +1775,11 @@
     if (!habit) return;
     var value = input.value.trim();
     habitEditing[habit.id] = false;
-    if (value) { habit.name = value; saveState(); }
+    if (value) {
+      habit.name = value;
+      saveState();
+      if (habit.reminderTime) syncReminders();
+    }
     renderHabits();
   }
 
