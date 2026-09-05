@@ -312,6 +312,16 @@
     min-height: 84px; resize: vertical; width: 100%;
   }
   .settings-btn.has-file { border-color: var(--ember); color: var(--ember); }
+  .settings-input {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    font-family: var(--font-body); font-size: 0.84rem; padding: 9px 10px; border-radius: var(--radius-sm);
+    flex: 1; min-width: 0;
+  }
+  .sync-code {
+    font-family: var(--font-mono); font-size: 0.9rem; letter-spacing: 0.03em; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; flex: 1;
+    overflow-x: auto; white-space: nowrap;
+  }
   .settings-time-row { display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
   .settings-note {
     font-size: 0.78rem; color: var(--text-muted); border: 1px dashed var(--border);
@@ -804,6 +814,35 @@
     </div>
 
     <div class="settings-section">
+      <span class="settings-row-title">Cloud Sync</span>
+      <p class="settings-note">Sync your habits, tasks, and notes across your devices with a private sync code.</p>
+
+      <div id="syncEnabledBlock" hidden>
+        <p class="settings-note">Your sync code &mdash; enter this on your other devices:</p>
+        <div class="settings-btn-row">
+          <code class="sync-code" id="syncCodeDisplay"></code>
+          <button type="button" class="settings-btn" id="syncCopyBtn">Copy</button>
+        </div>
+        <div class="settings-btn-row">
+          <button type="button" class="settings-btn danger" id="syncDisableBtn">Turn off sync on this device</button>
+        </div>
+      </div>
+
+      <div id="syncDisabledBlock">
+        <div class="settings-btn-row">
+          <button type="button" class="settings-btn" id="syncEnableBtn">Turn on cloud sync</button>
+        </div>
+        <p class="settings-note">Already syncing on another device?</p>
+        <div class="settings-btn-row">
+          <input type="text" id="syncLinkInput" class="settings-input" placeholder="Paste sync code">
+          <button type="button" class="settings-btn" id="syncLinkBtn">Link this device</button>
+        </div>
+      </div>
+
+      <p class="settings-note" id="syncMsg" hidden></p>
+    </div>
+
+    <div class="settings-section">
       <span class="settings-row-title">Data</span>
       <p class="settings-note">Export a backup of everything, or restore from a previous export.</p>
       <div class="settings-btn-row">
@@ -1000,12 +1039,7 @@
     return h12 + ':' + parts[1] + ' ' + ampm;
   }
 
-  function loadState() {
-    var state;
-    try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      state = raw ? JSON.parse(raw) : null;
-    } catch (e) { state = null; }
+  function normalizeState(state) {
     if (!state) state = { xp: 0, habits: [], tasks: [], notes: [], events: [] };
     if (!state.events) state.events = [];
     if (!state.notes) state.notes = [];
@@ -1021,8 +1055,20 @@
     state.tasks.forEach(function (t) { if (t.note && !t.noteCreatedAt) t.noteCreatedAt = t.noteUpdatedAt = Date.now(); });
     return state;
   }
+
+  function loadState() {
+    var state;
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      state = raw ? JSON.parse(raw) : null;
+    } catch (e) { state = null; }
+    state = normalizeState(state);
+    return state;
+  }
   function saveState() {
+    state.updatedAt = Date.now();
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    if (typeof schedulePushSync === 'function') schedulePushSync();
   }
 
   var state = loadState();
@@ -2080,6 +2126,135 @@
     }
   });
 
+  // ---------- cloud sync ----------
+  var SYNC_ID_KEY = 'stoke_sync_id';
+  var WORKER_SYNC_DATA_PUSH_URL = 'https://stoke-reminders.hellojaden23.workers.dev/sync-data/push';
+  var WORKER_SYNC_DATA_PULL_URL = 'https://stoke-reminders.hellojaden23.workers.dev/sync-data/pull';
+  var syncPushTimer = null;
+
+  function getSyncId() {
+    try { return localStorage.getItem(SYNC_ID_KEY) || ''; } catch (e) { return ''; }
+  }
+  function setSyncId(id) {
+    try {
+      if (id) localStorage.setItem(SYNC_ID_KEY, id);
+      else localStorage.removeItem(SYNC_ID_KEY);
+    } catch (e) {}
+  }
+  function generateSyncId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return uid() + uid() + uid();
+  }
+
+  function schedulePushSync() {
+    if (!getSyncId()) return;
+    clearTimeout(syncPushTimer);
+    syncPushTimer = setTimeout(function () { pushSyncNow(); }, 2000);
+  }
+
+  function pushSyncNow() {
+    var syncId = getSyncId();
+    if (!syncId) return;
+    fetch(WORKER_SYNC_DATA_PUSH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncId: syncId, data: state, updatedAt: state.updatedAt || Date.now() })
+    }).catch(function () {});
+  }
+
+  function pullSyncOnLoad() {
+    var syncId = getSyncId();
+    if (!syncId) return;
+    fetch(WORKER_SYNC_DATA_PULL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncId: syncId })
+    }).then(function (res) { return res.json(); }).then(function (result) {
+      if (result.data && result.updatedAt && result.updatedAt > (state.updatedAt || 0)) {
+        state = normalizeState(result.data);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+        renderAll();
+        checkAchievements();
+      } else if (state.updatedAt && (!result.updatedAt || state.updatedAt > result.updatedAt)) {
+        pushSyncNow();
+      }
+    }).catch(function () {});
+  }
+
+  function showSyncMsg(text) {
+    var el = document.getElementById('syncMsg');
+    el.textContent = text;
+    el.hidden = false;
+    clearTimeout(showSyncMsg._t);
+    showSyncMsg._t = setTimeout(function () { el.hidden = true; }, 4000);
+  }
+
+  function renderSyncSection() {
+    var syncId = getSyncId();
+    document.getElementById('syncEnabledBlock').hidden = !syncId;
+    document.getElementById('syncDisabledBlock').hidden = !!syncId;
+    if (syncId) document.getElementById('syncCodeDisplay').textContent = syncId;
+  }
+
+  document.getElementById('syncEnableBtn').addEventListener('click', function () {
+    var id = generateSyncId();
+    setSyncId(id);
+    renderSyncSection();
+    pushSyncNow();
+    showSyncMsg('Cloud sync is on.');
+  });
+
+  document.getElementById('syncCopyBtn').addEventListener('click', function () {
+    var code = getSyncId();
+    if (!code) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(function () {
+        showSyncMsg('Copied.');
+      }).catch(function () {
+        showSyncMsg('Could not copy - select and copy manually.');
+      });
+    } else {
+      showSyncMsg('Could not copy - select and copy manually.');
+    }
+  });
+
+  document.getElementById('syncDisableBtn').addEventListener('click', function () {
+    if (!window.confirm('Turn off sync on this device? Your data stays synced on any other linked devices.')) return;
+    setSyncId('');
+    renderSyncSection();
+    showSyncMsg('Sync turned off on this device.');
+  });
+
+  document.getElementById('syncLinkBtn').addEventListener('click', function () {
+    var input = document.getElementById('syncLinkInput');
+    var code = input.value.trim();
+    if (!code) {
+      showSyncMsg('Paste a sync code first.');
+      return;
+    }
+    if (!window.confirm("This replaces this device's current data with the synced data. Continue?")) return;
+    fetch(WORKER_SYNC_DATA_PULL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncId: code })
+    }).then(function (res) { return res.json(); }).then(function (result) {
+      if (!result.data) {
+        showSyncMsg('No synced data found for that code.');
+        return;
+      }
+      setSyncId(code);
+      state = normalizeState(result.data);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+      input.value = '';
+      renderSyncSection();
+      renderAll();
+      checkAchievements();
+      showSyncMsg('Device linked and synced.');
+    }).catch(function () {
+      showSyncMsg('Could not link device. Try again later.');
+    });
+  });
+
   // ---------- calendar navigation ----------
   document.getElementById('calPrev').addEventListener('click', function () {
     calViewDate.setMonth(calViewDate.getMonth() - 1);
@@ -2218,6 +2393,8 @@
 
   renderAll();
   checkAchievements();
+  renderSyncSection();
+  pullSyncOnLoad();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
