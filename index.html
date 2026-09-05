@@ -78,6 +78,31 @@
     --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 12px 30px rgba(0,0,0,0.45);
   }
 
+  /* ---------- accent themes ---------- */
+  :root[data-accent="pink"] { --ember: #D8447F; --ember-bright: #FF6FA8; --ember-soft: rgba(216,68,127,0.14); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"])[data-accent="pink"] { --ember: #FF6FA8; --ember-bright: #FF8FC0; --ember-soft: rgba(255,111,168,0.16); }
+  }
+  :root[data-theme="dark"][data-accent="pink"] { --ember: #FF6FA8; --ember-bright: #FF8FC0; --ember-soft: rgba(255,111,168,0.16); }
+
+  :root[data-accent="ocean"] { --ember: #1D6FA5; --ember-bright: #3B93D1; --ember-soft: rgba(29,111,165,0.14); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"])[data-accent="ocean"] { --ember: #4FA3E0; --ember-bright: #7CC0F0; --ember-soft: rgba(79,163,224,0.16); }
+  }
+  :root[data-theme="dark"][data-accent="ocean"] { --ember: #4FA3E0; --ember-bright: #7CC0F0; --ember-soft: rgba(79,163,224,0.16); }
+
+  :root[data-accent="violet"] { --ember: #7B4FA8; --ember-bright: #9B6FC8; --ember-soft: rgba(123,79,168,0.14); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"])[data-accent="violet"] { --ember: #B183DE; --ember-bright: #CBA3F0; --ember-soft: rgba(177,131,222,0.16); }
+  }
+  :root[data-theme="dark"][data-accent="violet"] { --ember: #B183DE; --ember-bright: #CBA3F0; --ember-soft: rgba(177,131,222,0.16); }
+
+  :root[data-accent="amber"] { --ember: #B8860B; --ember-bright: #D9A521; --ember-soft: rgba(184,134,11,0.14); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"])[data-accent="amber"] { --ember: #E8B94D; --ember-bright: #F5CE73; --ember-soft: rgba(232,185,77,0.16); }
+  }
+  :root[data-theme="dark"][data-accent="amber"] { --ember: #E8B94D; --ember-bright: #F5CE73; --ember-soft: rgba(232,185,77,0.16); }
+
   * { box-sizing: border-box; }
   html { color-scheme: light dark; }
   [hidden] { display: none !important; }
@@ -318,6 +343,12 @@
     min-height: 84px; resize: vertical; width: 100%;
   }
   .settings-btn.has-file { border-color: var(--ember); color: var(--ember); }
+  .accent-swatch-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .accent-swatch {
+    width: 40px; height: 40px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+    background: var(--swatch-color); padding: 0; flex: none;
+  }
+  .accent-swatch.active { border-color: var(--surface); box-shadow: 0 0 0 2px var(--swatch-color); }
   .settings-input {
     background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
     font-family: var(--font-body); font-size: 0.84rem; padding: 9px 10px; border-radius: var(--radius-sm);
@@ -795,6 +826,18 @@
     <p class="column-hint">Choose how you want to be reminded.</p>
 
     <div class="settings-section">
+      <span class="settings-row-title">Appearance</span>
+      <p class="settings-note">Pick an accent color for the app.</p>
+      <div class="accent-swatch-row" id="accentSwatchRow">
+        <button type="button" class="accent-swatch" data-accent="ember" style="--swatch-color:#D9531E" aria-label="Ember (default)"></button>
+        <button type="button" class="accent-swatch" data-accent="pink" style="--swatch-color:#D8447F" aria-label="Pink"></button>
+        <button type="button" class="accent-swatch" data-accent="ocean" style="--swatch-color:#1D6FA5" aria-label="Ocean"></button>
+        <button type="button" class="accent-swatch" data-accent="violet" style="--swatch-color:#7B4FA8" aria-label="Violet"></button>
+        <button type="button" class="accent-swatch" data-accent="amber" style="--swatch-color:#B8860B" aria-label="Amber"></button>
+      </div>
+    </div>
+
+    <div class="settings-section">
       <div class="settings-row">
         <div class="settings-row-text">
           <span class="settings-row-title">Notifications</span>
@@ -1156,6 +1199,7 @@
     if (!state.unlockedAchievements) state.unlockedAchievements = [];
     if (!state.stats) state.stats = { tasksCompletedTotal: 0 };
     if (typeof state.stats.tasksCompletedTotal !== 'number') state.stats.tasksCompletedTotal = 0;
+    if (!state.accentTheme) state.accentTheme = 'ember';
     state.notes.forEach(function (n) { if (!n.createdAt) n.createdAt = n.updatedAt || Date.now(); });
     state.habits.forEach(function (h) { if (h.note && !h.noteCreatedAt) h.noteCreatedAt = h.noteUpdatedAt = Date.now(); });
     state.tasks.forEach(function (t) { if (t.note && !t.noteCreatedAt) t.noteCreatedAt = t.noteUpdatedAt = Date.now(); });
@@ -1182,6 +1226,18 @@
     state.updatedAt = Date.now();
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     if (typeof schedulePushSync === 'function') schedulePushSync();
+  }
+
+  function applyAccentTheme() {
+    var theme = state.accentTheme || 'ember';
+    if (theme === 'ember') {
+      document.documentElement.removeAttribute('data-accent');
+    } else {
+      document.documentElement.setAttribute('data-accent', theme);
+    }
+    document.querySelectorAll('.accent-swatch').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.accent === theme);
+    });
   }
 
   var state = loadState();
@@ -2491,6 +2547,7 @@
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
         renderAll();
         checkAchievements();
+        applyAccentTheme();
       } else if (state.updatedAt && (!result.updatedAt || state.updatedAt > result.updatedAt)) {
         pushSyncNow();
       }
@@ -2565,6 +2622,7 @@
       renderSyncSection();
       renderAll();
       checkAchievements();
+      applyAccentTheme();
       showSyncMsg('Device linked and synced.');
     }).catch(function () {
       showSyncMsg('Could not link device. Try again later.');
@@ -2781,7 +2839,16 @@
   renderAll();
   checkAchievements();
   renderSyncSection();
+  applyAccentTheme();
   pullSyncOnLoad();
+
+  document.getElementById('accentSwatchRow').addEventListener('click', function (e) {
+    var btn = e.target.closest('.accent-swatch');
+    if (!btn) return;
+    state.accentTheme = btn.dataset.accent;
+    saveState();
+    applyAccentTheme();
+  });
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
