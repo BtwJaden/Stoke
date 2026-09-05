@@ -78,6 +78,22 @@
     --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 12px 30px rgba(0,0,0,0.45);
   }
 
+  /* ---------- background presets (force a dark-family palette regardless of system preference) ---------- */
+  :root[data-bg="midnight"] {
+    --bg: #0F1218; --surface: #171B24; --surface-2: #1C212C; --text: #EDEFF4; --text-muted: #9CA3B5; --border: #2C3341;
+    --ember: #FF7A3D; --ember-bright: #FF9153; --ember-soft: rgba(255,122,61,0.16);
+    --gold: #E9AC4F; --leaf: #8CAE6E; --leaf-soft: rgba(140,174,110,0.16);
+    --ink: #9CB0D1; --ink-soft: rgba(156,176,209,0.16); --danger: #E07A63;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 12px 30px rgba(0,0,0,0.45);
+  }
+  :root[data-bg="black"] {
+    --bg: #000000; --surface: #0A0A0A; --surface-2: #121212; --text: #F0F0F0; --text-muted: #9A9A9A; --border: #262626;
+    --ember: #FF7A3D; --ember-bright: #FF9153; --ember-soft: rgba(255,122,61,0.16);
+    --gold: #E9AC4F; --leaf: #8CAE6E; --leaf-soft: rgba(140,174,110,0.16);
+    --ink: #9CB0D1; --ink-soft: rgba(156,176,209,0.16); --danger: #E07A63;
+    --shadow: 0 1px 2px rgba(0,0,0,0.5), 0 12px 30px rgba(0,0,0,0.6);
+  }
+
   /* ---------- accent themes ---------- */
   :root[data-accent="pink"] { --ember: #D8447F; --ember-bright: #FF6FA8; --ember-soft: rgba(216,68,127,0.14); }
   @media (prefers-color-scheme: dark) {
@@ -349,6 +365,17 @@
     background: var(--swatch-color); padding: 0; flex: none;
   }
   .accent-swatch.active { border-color: var(--surface); box-shadow: 0 0 0 2px var(--swatch-color); }
+  .accent-swatch-custom {
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    background: conic-gradient(from 0deg, #ff5c5c, #ffd15c, #6dff5c, #5cf0ff, #5c6dff, #d15cff, #ff5c5c);
+  }
+  .accent-swatch-custom input[type="color"] { opacity: 0; width: 1px; height: 1px; position: absolute; }
+  .bg-swatch {
+    width: 40px; height: 40px; border-radius: 10px; border: 2px solid var(--border); cursor: pointer;
+    background: var(--swatch-color); padding: 0; flex: none;
+  }
+  .bg-swatch.active { border-color: var(--ember); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ember); }
+  .accent-swatch-custom.active { border-color: var(--surface); box-shadow: 0 0 0 2px var(--ember); }
   .settings-input {
     background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
     font-family: var(--font-body); font-size: 0.84rem; padding: 9px 10px; border-radius: var(--radius-sm);
@@ -827,13 +854,22 @@
 
     <div class="settings-section">
       <span class="settings-row-title">Appearance</span>
-      <p class="settings-note">Pick an accent color for the app.</p>
+      <p class="settings-note">Pick an accent color for the app, or choose your own.</p>
       <div class="accent-swatch-row" id="accentSwatchRow">
         <button type="button" class="accent-swatch" data-accent="ember" style="--swatch-color:#D9531E" aria-label="Ember (default)"></button>
         <button type="button" class="accent-swatch" data-accent="pink" style="--swatch-color:#D8447F" aria-label="Pink"></button>
         <button type="button" class="accent-swatch" data-accent="ocean" style="--swatch-color:#1D6FA5" aria-label="Ocean"></button>
         <button type="button" class="accent-swatch" data-accent="violet" style="--swatch-color:#7B4FA8" aria-label="Violet"></button>
         <button type="button" class="accent-swatch" data-accent="amber" style="--swatch-color:#B8860B" aria-label="Amber"></button>
+        <label class="accent-swatch accent-swatch-custom" id="customAccentSwatch" aria-label="Custom color">
+          <input type="color" id="customAccentInput" value="#D9531E">
+        </label>
+      </div>
+      <p class="settings-note" style="margin-top:14px;">Background</p>
+      <div class="accent-swatch-row" id="bgSwatchRow">
+        <button type="button" class="bg-swatch" data-bg="default" style="--swatch-color:#17140F" aria-label="Default"></button>
+        <button type="button" class="bg-swatch" data-bg="midnight" style="--swatch-color:#0F1218" aria-label="Midnight"></button>
+        <button type="button" class="bg-swatch" data-bg="black" style="--swatch-color:#000000" aria-label="True Black"></button>
       </div>
     </div>
 
@@ -1200,6 +1236,8 @@
     if (!state.stats) state.stats = { tasksCompletedTotal: 0 };
     if (typeof state.stats.tasksCompletedTotal !== 'number') state.stats.tasksCompletedTotal = 0;
     if (!state.accentTheme) state.accentTheme = 'ember';
+    if (typeof state.customAccent === 'undefined') state.customAccent = '';
+    if (!state.bgTheme) state.bgTheme = 'default';
     state.notes.forEach(function (n) { if (!n.createdAt) n.createdAt = n.updatedAt || Date.now(); });
     state.habits.forEach(function (h) { if (h.note && !h.noteCreatedAt) h.noteCreatedAt = h.noteUpdatedAt = Date.now(); });
     state.tasks.forEach(function (t) { if (t.note && !t.noteCreatedAt) t.noteCreatedAt = t.noteUpdatedAt = Date.now(); });
@@ -1228,15 +1266,61 @@
     if (typeof schedulePushSync === 'function') schedulePushSync();
   }
 
+  function hexToRgb(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(function (c) { return c + c; }).join('');
+    var num = parseInt(hex, 16);
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  }
+  function clamp255(v) { return Math.max(0, Math.min(255, Math.round(v))); }
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(function (v) {
+      var h = clamp255(v).toString(16);
+      return h.length === 1 ? '0' + h : h;
+    }).join('');
+  }
+  function lightenHex(hex, amount) {
+    var rgb = hexToRgb(hex);
+    return rgbToHex(rgb.r + (255 - rgb.r) * amount, rgb.g + (255 - rgb.g) * amount, rgb.b + (255 - rgb.b) * amount);
+  }
+  function hexToRgba(hex, alpha) {
+    var rgb = hexToRgb(hex);
+    return 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + alpha + ')';
+  }
+
   function applyAccentTheme() {
     var theme = state.accentTheme || 'ember';
-    if (theme === 'ember') {
+    document.documentElement.style.removeProperty('--ember');
+    document.documentElement.style.removeProperty('--ember-bright');
+    document.documentElement.style.removeProperty('--ember-soft');
+    if (theme === 'custom' && state.customAccent) {
+      document.documentElement.removeAttribute('data-accent');
+      document.documentElement.style.setProperty('--ember', state.customAccent);
+      document.documentElement.style.setProperty('--ember-bright', lightenHex(state.customAccent, 0.25));
+      document.documentElement.style.setProperty('--ember-soft', hexToRgba(state.customAccent, 0.15));
+    } else if (theme === 'ember') {
       document.documentElement.removeAttribute('data-accent');
     } else {
       document.documentElement.setAttribute('data-accent', theme);
     }
     document.querySelectorAll('.accent-swatch').forEach(function (btn) {
       btn.classList.toggle('active', btn.dataset.accent === theme);
+    });
+    var customInput = document.getElementById('customAccentInput');
+    if (customInput && state.customAccent) customInput.value = state.customAccent;
+    var customSwatch = document.getElementById('customAccentSwatch');
+    if (customSwatch) customSwatch.classList.toggle('active', theme === 'custom');
+  }
+
+  function applyBgTheme() {
+    var bg = state.bgTheme || 'default';
+    if (bg === 'default') {
+      document.documentElement.removeAttribute('data-bg');
+    } else {
+      document.documentElement.setAttribute('data-bg', bg);
+    }
+    document.querySelectorAll('.bg-swatch').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.bg === bg);
     });
   }
 
@@ -2548,6 +2632,7 @@
         renderAll();
         checkAchievements();
         applyAccentTheme();
+        applyBgTheme();
       } else if (state.updatedAt && (!result.updatedAt || state.updatedAt > result.updatedAt)) {
         pushSyncNow();
       }
@@ -2623,6 +2708,7 @@
       renderAll();
       checkAchievements();
       applyAccentTheme();
+      applyBgTheme();
       showSyncMsg('Device linked and synced.');
     }).catch(function () {
       showSyncMsg('Could not link device. Try again later.');
@@ -2840,14 +2926,30 @@
   checkAchievements();
   renderSyncSection();
   applyAccentTheme();
+  applyBgTheme();
   pullSyncOnLoad();
 
   document.getElementById('accentSwatchRow').addEventListener('click', function (e) {
     var btn = e.target.closest('.accent-swatch');
-    if (!btn) return;
+    if (!btn || btn.id === 'customAccentSwatch') return;
     state.accentTheme = btn.dataset.accent;
     saveState();
     applyAccentTheme();
+  });
+
+  document.getElementById('customAccentInput').addEventListener('input', function () {
+    state.accentTheme = 'custom';
+    state.customAccent = this.value;
+    saveState();
+    applyAccentTheme();
+  });
+
+  document.getElementById('bgSwatchRow').addEventListener('click', function (e) {
+    var btn = e.target.closest('.bg-swatch');
+    if (!btn) return;
+    state.bgTheme = btn.dataset.bg;
+    saveState();
+    applyBgTheme();
   });
 
   if ('serviceWorker' in navigator) {
