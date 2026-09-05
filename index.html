@@ -1287,6 +1287,51 @@
     var rgb = hexToRgb(hex);
     return 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + alpha + ')';
   }
+  function hexToHsl(hex) {
+    var rgb = hexToRgb(hex);
+    var r = rgb.r / 255, g = rgb.g / 255, b = rgb.b / 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h, s, l = (max + min) / 2;
+    if (max === min) { h = s = 0; }
+    else {
+      var d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h /= 6;
+    }
+    return { h: h * 360, s: s * 100, l: l * 100 };
+  }
+  function hslToHex(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    h /= 360; s /= 100; l /= 100;
+    var r, g, b;
+    if (s === 0) { r = g = b = l; }
+    else {
+      var hue2rgb = function (p, q, t) {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      var p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1 / 3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return rgbToHex(r * 255, g * 255, b * 255);
+  }
+  function deriveTaskColor(emberHex) {
+    var hsl = hexToHsl(emberHex);
+    var hue = hsl.h + 140;
+    var sat = Math.max(35, Math.min(hsl.s, 55));
+    var light = Math.max(38, Math.min(hsl.l, 62));
+    return hslToHex(hue, sat, light);
+  }
 
   function applyAccentTheme() {
     var theme = state.accentTheme || 'ember';
@@ -1302,6 +1347,12 @@
       document.documentElement.removeAttribute('data-accent');
     } else {
       document.documentElement.setAttribute('data-accent', theme);
+    }
+    var resolvedEmber = getComputedStyle(document.documentElement).getPropertyValue('--ember').trim();
+    if (resolvedEmber) {
+      var taskColor = deriveTaskColor(resolvedEmber);
+      document.documentElement.style.setProperty('--leaf', taskColor);
+      document.documentElement.style.setProperty('--leaf-soft', hexToRgba(taskColor, 0.15));
     }
     document.querySelectorAll('.accent-swatch').forEach(function (btn) {
       btn.classList.toggle('active', btn.dataset.accent === theme);
