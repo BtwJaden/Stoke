@@ -399,6 +399,33 @@
   .ach-medal.locked .ach-medal-name { color: var(--text-muted); }
   .ach-medal-desc { font-size: 0.64rem; color: var(--text-muted); line-height: 1.3; }
 
+  .ach-tabs { display: flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; background: var(--surface); align-self: flex-start; }
+  .ach-tab {
+    font-family: var(--font-body); font-size: 0.8rem; font-weight: 500; color: var(--text-muted);
+    background: transparent; border: none; border-radius: 999px; padding: 7px 16px; cursor: pointer;
+  }
+  .ach-tab.active { background: var(--ember); color: #fff; }
+
+  .heatmap-scroll { overflow-x: auto; padding-bottom: 4px; }
+  .heatmap-grid { display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; grid-auto-columns: 12px; gap: 3px; width: max-content; }
+  .heatmap-cell { width: 12px; height: 12px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--border); }
+  .heatmap-cell.empty { background: transparent; border-color: transparent; }
+  .heatmap-cell.level-0 { background: var(--surface-2); }
+  .heatmap-cell.level-1 { background: var(--ember-soft); border-color: transparent; }
+  .heatmap-cell.level-2 { background: var(--ember); opacity: 0.45; border-color: transparent; }
+  .heatmap-cell.level-3 { background: var(--ember); opacity: 0.75; border-color: transparent; }
+  .heatmap-cell.level-4 { background: var(--ember-bright); border-color: transparent; }
+  .heatmap-legend { display: flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 0.66rem; color: var(--text-muted); }
+  .heatmap-legend .heatmap-cell { width: 10px; height: 10px; }
+
+  .stat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .stat-list li {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2);
+    font-size: 0.82rem;
+  }
+  .stat-list .stat-value { font-family: var(--font-mono); font-weight: 600; color: var(--ember); }
+
   /* ---------- habit tile ---------- */
   .habit-tile {
     border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2);
@@ -922,9 +949,50 @@
       <div class="xp-bar"><div class="xp-fill" id="achXpFill" style="width:0%"></div></div>
       <span class="ach-xp-copy" id="achXpCopy"></span>
     </div>
-    <div class="agenda-section">
-      <span class="agenda-section-label" id="achProgressLabel">Achievements</span>
-      <ul class="ach-grid" id="achGrid"></ul>
+
+    <div class="ach-tabs" role="tablist">
+      <button type="button" class="ach-tab active" id="achTabAchievementsBtn" data-tab="achievements">Achievements</button>
+      <button type="button" class="ach-tab" id="achTabProgressBtn" data-tab="progress">Progress</button>
+    </div>
+
+    <div id="achievementsTabContent">
+      <div class="agenda-section">
+        <span class="agenda-section-label" id="achProgressLabel">Achievements</span>
+        <ul class="ach-grid" id="achGrid"></ul>
+      </div>
+    </div>
+
+    <div id="progressTabContent" hidden>
+      <div class="agenda-section">
+        <span class="agenda-section-label">Consistency</span>
+        <div class="heatmap-scroll" id="heatmapScroll">
+          <div class="heatmap-grid" id="heatmapGrid"></div>
+        </div>
+        <div class="heatmap-legend">
+          <span>Less</span>
+          <span class="heatmap-cell level-0"></span>
+          <span class="heatmap-cell level-1"></span>
+          <span class="heatmap-cell level-2"></span>
+          <span class="heatmap-cell level-3"></span>
+          <span class="heatmap-cell level-4"></span>
+          <span>More</span>
+        </div>
+      </div>
+
+      <div class="agenda-section">
+        <span class="agenda-section-label">This week vs last week</span>
+        <p class="settings-note" id="trendCopy"></p>
+      </div>
+
+      <div class="agenda-section">
+        <span class="agenda-section-label">Lifetime totals</span>
+        <ul class="stat-list" id="statTotalsList"></ul>
+      </div>
+
+      <div class="agenda-section">
+        <span class="agenda-section-label">Best streaks</span>
+        <ul class="stat-list" id="statStreaksList"></ul>
+      </div>
     </div>
   </div>
 </div>
@@ -1776,9 +1844,23 @@
   var achModalBackdrop = document.getElementById('achModalBackdrop');
   function openAchModal() {
     renderAchievements();
+    renderProgressTab();
+    setAchTab('achievements');
     achModalBackdrop.hidden = false;
     achPanel.hidden = false;
   }
+  function setAchTab(tab) {
+    document.getElementById('achTabAchievementsBtn').classList.toggle('active', tab === 'achievements');
+    document.getElementById('achTabProgressBtn').classList.toggle('active', tab === 'progress');
+    document.getElementById('achievementsTabContent').hidden = tab !== 'achievements';
+    document.getElementById('progressTabContent').hidden = tab !== 'progress';
+    if (tab === 'progress') {
+      var scrollEl = document.getElementById('heatmapScroll');
+      scrollEl.scrollLeft = scrollEl.scrollWidth;
+    }
+  }
+  document.getElementById('achTabAchievementsBtn').addEventListener('click', function () { setAchTab('achievements'); });
+  document.getElementById('achTabProgressBtn').addEventListener('click', function () { setAchTab('progress'); });
   function closeAchModal() {
     achModalBackdrop.hidden = true;
     achPanel.hidden = true;
@@ -1808,6 +1890,103 @@
         '<span class="ach-medal-desc">' + escapeHtml(a.desc) + '</span>' +
       '</li>';
     }).join('');
+  }
+
+  function bestStreak(history) {
+    if (!history.length) return 0;
+    var sorted = history.slice().sort();
+    var best = 1, current = 1;
+    for (var i = 1; i < sorted.length; i++) {
+      var prev = new Date(sorted[i - 1] + 'T00:00:00');
+      var cur = new Date(sorted[i] + 'T00:00:00');
+      var diffDays = Math.round((cur - prev) / 86400000);
+      if (diffDays <= STREAK_GRACE_DAYS + 1) current++;
+      else current = 1;
+      if (current > best) best = current;
+    }
+    return best;
+  }
+
+  function completionForDay(iso) {
+    var dayEnd = new Date(iso + 'T23:59:59').getTime();
+    var relevant = state.habits.filter(function (h) { return h.createdAt <= dayEnd; });
+    if (!relevant.length) return null;
+    var done = relevant.filter(function (h) { return h.history.indexOf(iso) !== -1; }).length;
+    return done / relevant.length;
+  }
+
+  function heatmapLevel(pct) {
+    if (pct === null) return 'empty';
+    if (pct === 0) return 'level-0';
+    if (pct <= 0.34) return 'level-1';
+    if (pct <= 0.67) return 'level-2';
+    if (pct < 1) return 'level-3';
+    return 'level-4';
+  }
+
+  function renderProgressTab() {
+    var weeks = 12;
+    var totalDays = weeks * 7;
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    var days = [];
+    for (var i = totalDays - 1; i >= 0; i--) {
+      var d = new Date(today);
+      d.setDate(d.getDate() - i);
+      days.push(d);
+    }
+    var firstDow = days[0].getDay();
+    var padded = [];
+    for (var p = 0; p < firstDow; p++) padded.push(null);
+    padded = padded.concat(days);
+
+    var html = '';
+    padded.forEach(function (d) {
+      if (!d) { html += '<span class="heatmap-cell empty"></span>'; return; }
+      var iso = isoFromDate(d);
+      var pct = completionForDay(iso);
+      html += '<span class="heatmap-cell ' + heatmapLevel(pct) + '" title="' + iso + (pct === null ? '' : ': ' + Math.round(pct * 100) + '%') + '"></span>';
+    });
+    document.getElementById('heatmapGrid').innerHTML = html;
+
+    function weekAvg(startAgo, endAgo) {
+      var vals = [];
+      for (var d2 = startAgo; d2 >= endAgo; d2--) {
+        var pct2 = completionForDay(isoDaysAgo(d2));
+        if (pct2 !== null) vals.push(pct2);
+      }
+      return vals.length ? vals.reduce(function (a, b) { return a + b; }, 0) / vals.length : null;
+    }
+    var thisWeek = weekAvg(6, 0);
+    var lastWeek = weekAvg(13, 7);
+    var trendEl = document.getElementById('trendCopy');
+    if (thisWeek === null && lastWeek === null) {
+      trendEl.textContent = 'Not enough data yet.';
+    } else {
+      var thisTxt = thisWeek === null ? 'n/a' : Math.round(thisWeek * 100) + '%';
+      var lastTxt = lastWeek === null ? 'n/a' : Math.round(lastWeek * 100) + '%';
+      trendEl.textContent = thisTxt + ' this week vs ' + lastTxt + ' last week.';
+    }
+
+    var habitCheckoffs = state.habits.reduce(function (sum, h) { return sum + h.history.length; }, 0);
+    var allCreatedAt = state.habits.map(function (h) { return h.createdAt; })
+      .concat(state.tasks.map(function (t) { return t.createdAt; }))
+      .concat(state.notes.map(function (n) { return n.createdAt; }));
+    var daysSince = allCreatedAt.length ? Math.max(0, Math.floor((Date.now() - Math.min.apply(null, allCreatedAt)) / 86400000)) : 0;
+
+    document.getElementById('statTotalsList').innerHTML =
+      '<li><span>Habit check-offs</span><span class="stat-value">' + habitCheckoffs + '</span></li>' +
+      '<li><span>Tasks completed</span><span class="stat-value">' + state.stats.tasksCompletedTotal + '</span></li>' +
+      '<li><span>Notes written</span><span class="stat-value">' + state.notes.length + '</span></li>' +
+      '<li><span>Days using Stoke</span><span class="stat-value">' + daysSince + '</span></li>';
+
+    var streaksHtml = state.habits.map(function (h) {
+      return { name: h.name, best: bestStreak(h.history) };
+    }).sort(function (a, b) { return b.best - a.best; }).map(function (s) {
+      return '<li><span>' + escapeHtml(s.name) + '</span><span class="stat-value">' + s.best + (s.best === 1 ? ' day' : ' days') + '</span></li>';
+    }).join('');
+    document.getElementById('statStreaksList').innerHTML = streaksHtml || '<li><span>No habits yet</span></li>';
   }
 
   document.getElementById('todayLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
