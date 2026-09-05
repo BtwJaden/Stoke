@@ -300,6 +300,18 @@
   .settings-btn svg { width: 15px; height: 15px; }
   .settings-btn.danger { color: var(--ember); border-color: var(--ember-soft); }
   .settings-btn.danger:hover { border-color: var(--ember); }
+  .feedback-form { display: flex; flex-direction: column; gap: 10px; }
+  .feedback-select {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    font-family: var(--font-body); font-size: 0.84rem; padding: 9px 10px; border-radius: var(--radius-sm);
+    align-self: flex-start;
+  }
+  .feedback-textarea {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    font-family: var(--font-body); font-size: 0.84rem; padding: 10px; border-radius: var(--radius-sm);
+    min-height: 84px; resize: vertical; width: 100%;
+  }
+  .settings-btn.has-file { border-color: var(--ember); color: var(--ember); }
   .settings-time-row { display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
   .settings-note {
     font-size: 0.78rem; color: var(--text-muted); border: 1px dashed var(--border);
@@ -770,6 +782,25 @@
     <div class="settings-section">
       <span class="settings-row-title">Per-habit reminders</span>
       <p class="settings-note">Tap the bell icon next to any habit on your Board to set its own reminder time.</p>
+    </div>
+
+    <div class="settings-section">
+      <span class="settings-row-title">Feedback</span>
+      <p class="settings-note">Found a bug, or have an idea? Send it straight over.</p>
+      <div class="feedback-form">
+        <select id="feedbackCategory" class="feedback-select">
+          <option value="bug">Bug</option>
+          <option value="suggestion">Suggestion</option>
+          <option value="other">Other</option>
+        </select>
+        <textarea id="feedbackText" class="feedback-textarea" placeholder="What's going on?" maxlength="2000"></textarea>
+        <div class="settings-btn-row">
+          <button type="button" class="settings-btn" id="feedbackScreenshotBtn"><svg><use href="#icon-note"/></svg> <span id="feedbackScreenshotLabel">Add screenshot</span></button>
+          <input type="file" id="feedbackScreenshotInput" accept="image/*" hidden>
+          <button type="button" class="settings-btn" id="feedbackSubmitBtn">Send feedback</button>
+        </div>
+        <p class="settings-note" id="feedbackMsg" hidden></p>
+      </div>
     </div>
 
     <div class="settings-section">
@@ -1774,6 +1805,7 @@
   var lastNotifError = '';
   var diagInfo = document.getElementById('diagInfo');
   var WORKER_SYNC_URL = 'https://stoke-reminders.hellojaden23.workers.dev/sync';
+  var WORKER_FEEDBACK_URL = 'https://stoke-reminders.hellojaden23.workers.dev/feedback';
 
   function syncReminders() {
     if (!oneSignal) return;
@@ -1970,6 +2002,82 @@
       location.reload();
     };
     reader.readAsText(file);
+  });
+
+  // ---------- feedback ----------
+  var feedbackScreenshotFile = null;
+  var feedbackScreenshotBtn = document.getElementById('feedbackScreenshotBtn');
+  var feedbackScreenshotInput = document.getElementById('feedbackScreenshotInput');
+  var feedbackScreenshotLabel = document.getElementById('feedbackScreenshotLabel');
+
+  feedbackScreenshotBtn.addEventListener('click', function () {
+    feedbackScreenshotInput.click();
+  });
+  feedbackScreenshotInput.addEventListener('change', function (e) {
+    feedbackScreenshotFile = e.target.files[0] || null;
+    feedbackScreenshotLabel.textContent = feedbackScreenshotFile ? feedbackScreenshotFile.name : 'Add screenshot';
+    feedbackScreenshotBtn.classList.toggle('has-file', !!feedbackScreenshotFile);
+  });
+
+  function showFeedbackMsg(text) {
+    var el = document.getElementById('feedbackMsg');
+    el.textContent = text;
+    el.hidden = false;
+    clearTimeout(showFeedbackMsg._t);
+    showFeedbackMsg._t = setTimeout(function () { el.hidden = true; }, 4000);
+  }
+
+  document.getElementById('feedbackSubmitBtn').addEventListener('click', function () {
+    var category = document.getElementById('feedbackCategory').value;
+    var textEl = document.getElementById('feedbackText');
+    var text = textEl.value.trim();
+    if (!text) {
+      showFeedbackMsg('Add a few words first.');
+      return;
+    }
+    var submitBtn = document.getElementById('feedbackSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+
+    function resetSubmitBtn() {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send feedback';
+    }
+
+    function send(screenshot) {
+      fetch(WORKER_FEEDBACK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: category, text: text, screenshot: screenshot })
+      }).then(function (res) {
+        resetSubmitBtn();
+        if (!res.ok) {
+          showFeedbackMsg('Could not send feedback. Try again later.');
+          return;
+        }
+        textEl.value = '';
+        feedbackScreenshotFile = null;
+        feedbackScreenshotInput.value = '';
+        feedbackScreenshotLabel.textContent = 'Add screenshot';
+        feedbackScreenshotBtn.classList.remove('has-file');
+        showFeedbackMsg("Thanks, feedback sent.");
+      }).catch(function () {
+        resetSubmitBtn();
+        showFeedbackMsg('Could not send feedback. Try again later.');
+      });
+    }
+
+    if (feedbackScreenshotFile) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var base64 = reader.result.split(',')[1];
+        send({ content: base64, filename: feedbackScreenshotFile.name, contentType: feedbackScreenshotFile.type || 'image/png' });
+      };
+      reader.onerror = function () { send(null); };
+      reader.readAsDataURL(feedbackScreenshotFile);
+    } else {
+      send(null);
+    }
   });
 
   // ---------- calendar navigation ----------
