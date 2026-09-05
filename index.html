@@ -919,8 +919,22 @@
       <ul class="item-list" id="agendaTaskList"></ul>
     </div>
     <form class="event-add" id="eventForm">
-      <input type="text" id="eventTitle" placeholder="Add an appointment or event" maxlength="80" required>
+      <input type="text" id="eventTitle" placeholder="Add an appointment or reminder" maxlength="80" required>
       <div class="event-add-row">
+        <select id="eventType" class="feedback-select" style="flex:1;">
+          <option value="appointment">Appointment</option>
+          <option value="reminder">Reminder</option>
+        </select>
+        <select id="eventRepeat" class="feedback-select" style="flex:1;">
+          <option value="none">Doesn't repeat</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Every 2 weeks</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
+      <div class="event-add-row" id="eventTimeRow">
         <div class="time-field">
           <label for="eventStart">Start</label>
           <input type="time" id="eventStart">
@@ -931,8 +945,8 @@
           <input type="time" id="eventEnd">
           <svg class="field-icon" aria-hidden="true"><use href="#icon-clock"/></svg>
         </div>
-        <button type="submit" class="add-submit"><svg><use href="#icon-plus"/></svg></button>
       </div>
+      <button type="submit" class="add-submit"><svg><use href="#icon-plus"/></svg></button>
     </form>
   </div>
 </div>
@@ -1121,6 +1135,11 @@
     state.notes.forEach(function (n) { if (!n.createdAt) n.createdAt = n.updatedAt || Date.now(); });
     state.habits.forEach(function (h) { if (h.note && !h.noteCreatedAt) h.noteCreatedAt = h.noteUpdatedAt = Date.now(); });
     state.tasks.forEach(function (t) { if (t.note && !t.noteCreatedAt) t.noteCreatedAt = t.noteUpdatedAt = Date.now(); });
+    state.events.forEach(function (ev) {
+      if (!ev.type) ev.type = 'appointment';
+      if (typeof ev.recurrence === 'undefined') ev.recurrence = null;
+      if (!ev.exceptions) ev.exceptions = {};
+    });
     return state;
   }
 
@@ -1404,8 +1423,32 @@
   var calListEl = document.getElementById('calList');
   var calViewMode = 'grid';
 
+  function generateOccurrences(entry, rangeStartISO, rangeEndISO) {
+    if (!entry.recurrence) {
+      return (entry.date >= rangeStartISO && entry.date <= rangeEndISO) ? [entry.date] : [];
+    }
+    var rec = entry.recurrence;
+    var occurrences = [];
+    var cursor = new Date(entry.date + 'T00:00:00');
+    var count = 0;
+    var maxIterations = 1000;
+    while (maxIterations-- > 0) {
+      var iso = isoFromDate(cursor);
+      if (rec.endType === 'date' && rec.endValue && iso > rec.endValue) break;
+      if (iso > rangeEndISO) break;
+      if (rec.endType === 'count' && rec.endValue && count >= rec.endValue) break;
+      if (iso >= rangeStartISO) occurrences.push(iso);
+      count++;
+      if (rec.unit === 'day') cursor.setDate(cursor.getDate() + rec.interval);
+      else if (rec.unit === 'week') cursor.setDate(cursor.getDate() + rec.interval * 7);
+      else if (rec.unit === 'month') cursor.setMonth(cursor.getMonth() + rec.interval);
+      else if (rec.unit === 'year') cursor.setFullYear(cursor.getFullYear() + rec.interval);
+    }
+    return occurrences;
+  }
+
   function getDayEvents(iso) {
-    return state.events.filter(function (ev) { return ev.date === iso; }).sort(function (a, b) {
+    return state.events.filter(function (ev) { return generateOccurrences(ev, iso, iso).length > 0; }).sort(function (a, b) {
       if (!a.startTime && !b.startTime) return a.createdAt - b.createdAt;
       if (!a.startTime) return -1;
       if (!b.startTime) return 1;
@@ -2480,21 +2523,44 @@
   calViewListBtn.addEventListener('click', function () { setCalViewMode('list'); });
 
   // ---------- appointments ----------
+  var REPEAT_PRESETS = {
+    none: null,
+    daily: { unit: 'day', interval: 1 },
+    weekly: { unit: 'week', interval: 1 },
+    biweekly: { unit: 'week', interval: 2 },
+    monthly: { unit: 'month', interval: 1 },
+    yearly: { unit: 'year', interval: 1 }
+  };
+
+  document.getElementById('eventType').addEventListener('change', function () {
+    document.getElementById('eventTimeRow').hidden = this.value === 'reminder';
+  });
+
   document.getElementById('eventForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var titleInput = document.getElementById('eventTitle');
     var startInput = document.getElementById('eventStart');
     var endInput = document.getElementById('eventEnd');
+    var typeSelect = document.getElementById('eventType');
+    var repeatSelect = document.getElementById('eventRepeat');
     var title = titleInput.value.trim();
     if (!title) return;
+    var isReminder = typeSelect.value === 'reminder';
+    var repeatPreset = REPEAT_PRESETS[repeatSelect.value];
     state.events.push({
-      id: uid(), title: title, date: selectedDate,
-      startTime: startInput.value || '', endTime: endInput.value || '',
+      id: uid(), title: title, date: selectedDate, type: typeSelect.value,
+      startTime: isReminder ? '' : (startInput.value || ''),
+      endTime: isReminder ? '' : (endInput.value || ''),
+      recurrence: repeatPreset ? { type: 'fixed', unit: repeatPreset.unit, interval: repeatPreset.interval, endType: 'never', endValue: null } : null,
+      exceptions: {},
       note: '', noteOpen: false, createdAt: Date.now()
     });
     titleInput.value = '';
     startInput.value = '';
     endInput.value = '';
+    typeSelect.value = 'appointment';
+    repeatSelect.value = 'none';
+    document.getElementById('eventTimeRow').hidden = false;
     saveState();
     renderCalendar();
   });
