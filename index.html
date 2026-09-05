@@ -956,6 +956,20 @@
           <svg class="field-icon" aria-hidden="true"><use href="#icon-clock"/></svg>
         </div>
       </div>
+      <div class="event-add-row">
+        <select id="eventAlertLead" class="feedback-select" style="flex:1;">
+          <option value="">No alert</option>
+          <option value="0">At start time</option>
+          <option value="15">15 min before</option>
+          <option value="60">1 hour before</option>
+          <option value="1440">1 day before</option>
+        </select>
+        <div class="time-field" id="eventAlertTimeField" hidden>
+          <label for="eventAlertTime">Notify at</label>
+          <input type="time" id="eventAlertTime">
+          <svg class="field-icon" aria-hidden="true"><use href="#icon-bell"/></svg>
+        </div>
+      </div>
       <button type="submit" class="add-submit"><svg><use href="#icon-plus"/></svg></button>
     </form>
   </div>
@@ -1149,6 +1163,8 @@
       if (!ev.type) ev.type = 'appointment';
       if (typeof ev.recurrence === 'undefined') ev.recurrence = null;
       if (!ev.exceptions) ev.exceptions = {};
+      if (typeof ev.alertLeadMinutes === 'undefined') ev.alertLeadMinutes = null;
+      if (typeof ev.alertTime === 'undefined') ev.alertTime = '';
     });
     return state;
   }
@@ -2143,6 +2159,23 @@
     var habits = state.habits
       .filter(function (h) { return h.reminderTime; })
       .map(function (h) { return { id: h.id, name: h.name, time: h.reminderTime }; });
+    var eventAlerts = state.events
+      .filter(function (ev) {
+        return ev.type === 'reminder' ? !!ev.alertTime : (ev.alertLeadMinutes !== null && typeof ev.alertLeadMinutes !== 'undefined');
+      })
+      .map(function (ev) {
+        var isReminder = ev.type === 'reminder';
+        return {
+          id: ev.id,
+          title: ev.title,
+          date: ev.date,
+          recurrenceUnit: ev.recurrence ? ev.recurrence.unit : null,
+          recurrenceInterval: ev.recurrence ? ev.recurrence.interval : null,
+          alertType: isReminder ? 'fixed' : 'lead',
+          alertValue: isReminder ? ev.alertTime : String(ev.alertLeadMinutes),
+          startTime: isReminder ? null : ev.startTime
+        };
+      });
     fetch(WORKER_SYNC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2150,7 +2183,8 @@
         subscriptionId: subscriptionId,
         timezone: timezone,
         allInOne: state.notifications.allInOne,
-        habits: habits
+        habits: habits,
+        eventAlerts: eventAlerts
       })
     }).catch(function () {});
   }
@@ -2593,7 +2627,10 @@
   };
 
   document.getElementById('eventType').addEventListener('change', function () {
-    document.getElementById('eventTimeRow').hidden = this.value === 'reminder';
+    var isReminder = this.value === 'reminder';
+    document.getElementById('eventTimeRow').hidden = isReminder;
+    document.getElementById('eventAlertLead').hidden = isReminder;
+    document.getElementById('eventAlertTimeField').hidden = !isReminder;
   });
 
   document.getElementById('eventForm').addEventListener('submit', function (e) {
@@ -2603,6 +2640,8 @@
     var endInput = document.getElementById('eventEnd');
     var typeSelect = document.getElementById('eventType');
     var repeatSelect = document.getElementById('eventRepeat');
+    var alertLeadSelect = document.getElementById('eventAlertLead');
+    var alertTimeInput = document.getElementById('eventAlertTime');
     var title = titleInput.value.trim();
     if (!title) return;
     var isReminder = typeSelect.value === 'reminder';
@@ -2613,6 +2652,8 @@
       endTime: isReminder ? '' : (endInput.value || ''),
       recurrence: repeatPreset ? { type: 'fixed', unit: repeatPreset.unit, interval: repeatPreset.interval, endType: 'never', endValue: null } : null,
       exceptions: {},
+      alertLeadMinutes: (!isReminder && alertLeadSelect.value !== '') ? parseInt(alertLeadSelect.value, 10) : null,
+      alertTime: (isReminder && alertTimeInput.value) ? alertTimeInput.value : '',
       note: '', noteOpen: false, createdAt: Date.now()
     });
     titleInput.value = '';
@@ -2620,9 +2661,14 @@
     endInput.value = '';
     typeSelect.value = 'appointment';
     repeatSelect.value = 'none';
+    alertLeadSelect.value = '';
+    alertTimeInput.value = '';
     document.getElementById('eventTimeRow').hidden = false;
+    document.getElementById('eventAlertLead').hidden = false;
+    document.getElementById('eventAlertTimeField').hidden = true;
     saveState();
     renderCalendar();
+    syncReminders();
   });
 
   eventListEl.addEventListener('click', function (e) {
@@ -2646,6 +2692,7 @@
       delete occRescheduling[ev.id];
       saveState();
       renderCalendar();
+      syncReminders();
     } else if (action === 'occ-complete') {
       var key = li.dataset.occKey;
       if (!ev.exceptions) ev.exceptions = {};
@@ -2695,7 +2742,11 @@
     if (!ev) return;
     var value = input.value.trim();
     eventEditing[ev.id] = false;
-    if (value) { ev.title = value; saveState(); }
+    if (value) {
+      ev.title = value;
+      saveState();
+      if (ev.alertLeadMinutes !== null || ev.alertTime) syncReminders();
+    }
     renderCalendar();
   }
   eventListEl.addEventListener('focusout', function (e) {
