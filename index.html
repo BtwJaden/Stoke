@@ -221,10 +221,16 @@
   .agenda-section[hidden] { display: none; }
   .agenda-section-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
 
-  .event-row { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start; }
+  .event-row { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
   .event-time-badge { display: inline-block; font-family: var(--font-mono); font-size: 0.66rem; color: var(--ink); background: var(--ink-soft); border-radius: 6px; padding: 4px 7px; white-space: nowrap; margin-bottom: 5px; }
-  .event-main { flex: 1; min-width: 0; }
+  .event-main { flex: 1; }
   .event-title { font-weight: 600; font-size: 0.9rem; overflow-wrap: break-word; }
+  .event-main.occ-done .event-title { text-decoration: line-through; color: var(--text-muted); }
+  .reschedule-row { display: flex; gap: 6px; margin-top: 6px; align-items: center; flex-basis: 100%; }
+  .reschedule-row input[type="date"] {
+    flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 6px 8px; color: var(--text); font-family: var(--font-body); font-size: 0.8rem;
+  }
   .event-title-input {
     flex: 1; min-width: 0; font-family: inherit; font-weight: 600; font-size: 0.9rem; color: var(--text);
     background: var(--surface); border: 1px solid var(--ink); border-radius: 6px; padding: 3px 7px; width: 100%;
@@ -676,6 +682,10 @@
     <symbol id="icon-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="5" y="11" width="14" height="9" rx="1.5"/>
       <path d="M8 11 V7.5 C8 5 9.8 3.2 12 3.2 C14.2 3.2 16 5 16 7.5 V11"/>
+    </symbol>
+    <symbol id="icon-skip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 5 L12 12 L5 19"/>
+      <path d="M13 5 L20 12 L13 19"/>
     </symbol>
     <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 3.5 V15 M7 10.5 L12 15.5 L17 10.5"/>
@@ -1164,6 +1174,7 @@
   var habitEditing = {};
   var taskEditing = {};
   var eventEditing = {};
+  var occRescheduling = {};
   var currentView = 'board';
   var calViewDate = new Date();
   calViewDate.setDate(1);
@@ -1424,8 +1435,16 @@
   var calViewMode = 'grid';
 
   function generateOccurrences(entry, rangeStartISO, rangeEndISO) {
+    var exceptions = entry.exceptions || {};
     if (!entry.recurrence) {
-      return (entry.date >= rangeStartISO && entry.date <= rangeEndISO) ? [entry.date] : [];
+      var exc0 = exceptions[entry.date];
+      if (exc0 && exc0.status === 'skipped') return [];
+      if (exc0 && exc0.status === 'moved') {
+        return (exc0.movedTo >= rangeStartISO && exc0.movedTo <= rangeEndISO)
+          ? [{ date: exc0.movedTo, status: 'upcoming', key: entry.date }] : [];
+      }
+      return (entry.date >= rangeStartISO && entry.date <= rangeEndISO)
+        ? [{ date: entry.date, status: exc0 ? exc0.status : 'upcoming', key: entry.date }] : [];
     }
     var rec = entry.recurrence;
     var occurrences = [];
@@ -1437,7 +1456,18 @@
       if (rec.endType === 'date' && rec.endValue && iso > rec.endValue) break;
       if (iso > rangeEndISO) break;
       if (rec.endType === 'count' && rec.endValue && count >= rec.endValue) break;
-      if (iso >= rangeStartISO) occurrences.push(iso);
+
+      var exc = exceptions[iso];
+      if (exc && exc.status === 'skipped') {
+        // omitted entirely
+      } else if (exc && exc.status === 'moved') {
+        if (exc.movedTo >= rangeStartISO && exc.movedTo <= rangeEndISO) {
+          occurrences.push({ date: exc.movedTo, status: 'upcoming', key: iso });
+        }
+      } else if (iso >= rangeStartISO) {
+        occurrences.push({ date: iso, status: exc ? exc.status : 'upcoming', key: iso });
+      }
+
       count++;
       if (rec.unit === 'day') cursor.setDate(cursor.getDate() + rec.interval);
       else if (rec.unit === 'week') cursor.setDate(cursor.getDate() + rec.interval * 7);
@@ -1554,18 +1584,43 @@
         var titleMarkup = editing
           ? '<input type="text" class="event-title-input" data-action="event-title-input" value="' + escapeAttr(ev.title) + '" maxlength="80">'
           : '<span class="event-title">' + escapeHtml(ev.title) + '</span>';
-        var timeLabel = ev.startTime ? (formatTime12(ev.startTime) + (ev.endTime ? ' - ' + formatTime12(ev.endTime) : '')) : 'All day';
+        var timeLabel = ev.startTime ? (formatTime12(ev.startTime) + (ev.endTime ? ' - ' + formatTime12(ev.endTime) : '')) : (ev.type === 'reminder' ? 'Reminder' : 'All day');
+
+        var occKey = selectedDate;
+        var occStatus = 'upcoming';
+        var occs = generateOccurrences(ev, selectedDate, selectedDate);
+        if (occs.length) { occKey = occs[0].key; occStatus = occs[0].status; }
+        li.dataset.occKey = occKey;
+
+        var actionsHtml;
+        if (ev.recurrence) {
+          var rescheduleOpen = !!occRescheduling[ev.id];
+          actionsHtml =
+            '<div class="item-actions">' +
+              '<button class="icon-btn' + (occStatus === 'done' ? ' has-reminder' : '') + '" data-action="occ-complete" aria-label="Mark done"><svg><use href="#icon-check"/></svg></button>' +
+              '<button class="icon-btn" data-action="occ-skip" aria-label="Skip this occurrence"><svg><use href="#icon-skip"/></svg></button>' +
+              '<button class="icon-btn' + (rescheduleOpen ? ' has-reminder' : '') + '" data-action="occ-reschedule" aria-label="Reschedule this occurrence"><svg><use href="#icon-calendar"/></svg></button>' +
+              '<button class="icon-btn danger" data-action="delete-event" aria-label="Delete series"><svg><use href="#icon-x"/></svg></button>' +
+            '</div>' +
+            (rescheduleOpen
+              ? '<div class="reschedule-row"><input type="date" data-action="reschedule-date-input" value="' + selectedDate + '"><button class="icon-btn" data-action="confirm-reschedule" aria-label="Confirm new date"><svg><use href="#icon-check"/></svg></button></div>'
+              : '');
+        } else {
+          actionsHtml =
+            '<div class="item-actions">' +
+              '<button class="icon-btn" data-action="toggle-edit" aria-label="Rename appointment"><svg><use href="#icon-edit"/></svg></button>' +
+              '<button class="icon-btn" data-action="toggle-note" aria-label="Toggle details"><svg><use href="#icon-note"/></svg></button>' +
+              '<button class="icon-btn danger" data-action="delete-event" aria-label="Delete appointment"><svg><use href="#icon-x"/></svg></button>' +
+            '</div>';
+        }
+
         li.innerHTML =
-          '<div class="event-main">' +
+          '<div class="event-main' + (occStatus === 'done' ? ' occ-done' : '') + '">' +
             '<span class="event-time-badge">' + escapeHtml(timeLabel) + '</span>' +
             '<div>' + titleMarkup + '</div>' +
             '<div class="note-area"' + (ev.noteOpen ? '' : ' hidden') + '><textarea data-action="event-note" placeholder="Details...">' + escapeHtml(ev.note || '') + '</textarea></div>' +
           '</div>' +
-          '<div class="item-actions">' +
-            '<button class="icon-btn" data-action="toggle-edit" aria-label="Rename appointment"><svg><use href="#icon-edit"/></svg></button>' +
-            '<button class="icon-btn" data-action="toggle-note" aria-label="Toggle details"><svg><use href="#icon-note"/></svg></button>' +
-            '<button class="icon-btn danger" data-action="delete-event" aria-label="Delete appointment"><svg><use href="#icon-x"/></svg></button>' +
-          '</div>';
+          actionsHtml;
         eventListEl.appendChild(li);
         if (editing) {
           var input = li.querySelector('.event-title-input');
@@ -2583,7 +2638,38 @@
     } else if (action === 'delete-event') {
       state.events = state.events.filter(function (x) { return x.id !== ev.id; });
       delete eventEditing[ev.id];
+      delete occRescheduling[ev.id];
       saveState();
+      renderCalendar();
+    } else if (action === 'occ-complete') {
+      var key = li.dataset.occKey;
+      if (!ev.exceptions) ev.exceptions = {};
+      if (ev.exceptions[key] && ev.exceptions[key].status === 'done') {
+        delete ev.exceptions[key];
+      } else {
+        ev.exceptions[key] = { status: 'done' };
+      }
+      saveState();
+      renderCalendar();
+    } else if (action === 'occ-skip') {
+      var skipKey = li.dataset.occKey;
+      if (!ev.exceptions) ev.exceptions = {};
+      ev.exceptions[skipKey] = { status: 'skipped' };
+      saveState();
+      renderCalendar();
+    } else if (action === 'occ-reschedule') {
+      occRescheduling[ev.id] = !occRescheduling[ev.id];
+      renderCalendar();
+    } else if (action === 'confirm-reschedule') {
+      var dateInput = li.querySelector('[data-action="reschedule-date-input"]');
+      var newDate = dateInput ? dateInput.value : '';
+      if (newDate) {
+        var moveKey = li.dataset.occKey;
+        if (!ev.exceptions) ev.exceptions = {};
+        ev.exceptions[moveKey] = { status: 'moved', movedTo: newDate };
+        saveState();
+      }
+      occRescheduling[ev.id] = false;
       renderCalendar();
     }
   });
