@@ -376,6 +376,19 @@
   }
   .bg-swatch.active { border-color: var(--ember); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ember); }
   .accent-swatch-custom.active { border-color: var(--surface); box-shadow: 0 0 0 2px var(--ember); }
+  .event-color-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .event-color-swatch {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+    background: var(--swatch-color); padding: 0; flex: none;
+  }
+  .event-color-swatch.active { border-color: var(--surface); box-shadow: 0 0 0 2px var(--swatch-color); }
+  .event-color-swatch.auto { background: var(--surface-2); border: 2px dashed var(--border); }
+  .event-color-swatch.auto.active { border-style: solid; border-color: var(--surface); box-shadow: 0 0 0 2px var(--text-muted); }
+  .event-color-dot {
+    display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer;
+    background: var(--dot-color); padding: 0; vertical-align: middle; margin-right: 6px; flex: none;
+  }
+  .inline-color-row { margin-top: 8px; }
   .settings-input {
     background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
     font-family: var(--font-body); font-size: 0.84rem; padding: 9px 10px; border-radius: var(--radius-sm);
@@ -1049,6 +1062,19 @@
           <svg class="field-icon" aria-hidden="true"><use href="#icon-bell"/></svg>
         </div>
       </div>
+      <div class="event-color-row" id="eventColorRow">
+        <button type="button" class="event-color-swatch auto active" data-color="" aria-label="Default color for this type"></button>
+        <button type="button" class="event-color-swatch" data-color="blue" style="--swatch-color:#4F8FE0" aria-label="Blue"></button>
+        <button type="button" class="event-color-swatch" data-color="red" style="--swatch-color:#E0585B" aria-label="Red"></button>
+        <button type="button" class="event-color-swatch" data-color="orange" style="--swatch-color:#E0975E" aria-label="Orange"></button>
+        <button type="button" class="event-color-swatch" data-color="yellow" style="--swatch-color:#D9C255" aria-label="Yellow"></button>
+        <button type="button" class="event-color-swatch" data-color="green" style="--swatch-color:#6FBE6F" aria-label="Green"></button>
+        <button type="button" class="event-color-swatch" data-color="teal" style="--swatch-color:#4FC4C4" aria-label="Teal"></button>
+        <button type="button" class="event-color-swatch" data-color="purple" style="--swatch-color:#9B72D0" aria-label="Purple"></button>
+        <button type="button" class="event-color-swatch" data-color="pink" style="--swatch-color:#E074A8" aria-label="Pink"></button>
+        <button type="button" class="event-color-swatch" data-color="gray" style="--swatch-color:#9AA0A8" aria-label="Gray"></button>
+        <button type="button" class="event-color-swatch" data-color="brown" style="--swatch-color:#B08863" aria-label="Brown"></button>
+      </div>
       <button type="submit" class="add-submit"><svg><use href="#icon-plus"/></svg></button>
     </form>
   </div>
@@ -1247,6 +1273,7 @@
       if (!ev.exceptions) ev.exceptions = {};
       if (typeof ev.alertLeadMinutes === 'undefined') ev.alertLeadMinutes = null;
       if (typeof ev.alertTime === 'undefined') ev.alertTime = '';
+      if (typeof ev.color === 'undefined') ev.color = null;
     });
     return state;
   }
@@ -1333,6 +1360,37 @@
     return hslToHex(hue, sat, light);
   }
 
+  var EVENT_COLORS = {
+    blue:   { solid: '#4F8FE0', soft: 'rgba(79,143,224,0.16)' },
+    red:    { solid: '#E0585B', soft: 'rgba(224,88,91,0.16)' },
+    orange: { solid: '#E0975E', soft: 'rgba(224,151,94,0.16)' },
+    yellow: { solid: '#D9C255', soft: 'rgba(217,194,85,0.16)' },
+    green:  { solid: '#6FBE6F', soft: 'rgba(111,190,111,0.16)' },
+    teal:   { solid: '#4FC4C4', soft: 'rgba(79,196,196,0.16)' },
+    purple: { solid: '#9B72D0', soft: 'rgba(155,114,208,0.16)' },
+    pink:   { solid: '#E074A8', soft: 'rgba(224,116,168,0.16)' },
+    gray:   { solid: '#9AA0A8', soft: 'rgba(154,160,168,0.16)' },
+    brown:  { solid: '#B08863', soft: 'rgba(176,136,99,0.16)' }
+  };
+  var EVENT_COLOR_ORDER = ['blue', 'red', 'orange', 'yellow', 'green', 'teal', 'purple', 'pink', 'gray', 'brown'];
+  function resolveEventColorKey(ev) {
+    return ev.color || (ev.type === 'reminder' ? 'yellow' : 'blue');
+  }
+  function resolveEventColor(ev) {
+    return EVENT_COLORS[resolveEventColorKey(ev)] || EVENT_COLORS.blue;
+  }
+  function eventColorRowHtml(ev) {
+    var current = ev.color || '';
+    var html = '<div class="event-color-row inline-color-row">';
+    html += '<button type="button" class="event-color-swatch auto' + (current === '' ? ' active' : '') + '" data-color="" aria-label="Default color for this type"></button>';
+    EVENT_COLOR_ORDER.forEach(function (key) {
+      var c = EVENT_COLORS[key];
+      html += '<button type="button" class="event-color-swatch' + (current === key ? ' active' : '') + '" data-color="' + key + '" style="--swatch-color:' + c.solid + '" aria-label="' + key + '"></button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
   function applyAccentTheme() {
     var theme = state.accentTheme || 'ember';
     document.documentElement.style.removeProperty('--ember');
@@ -1382,6 +1440,7 @@
   var taskEditing = {};
   var eventEditing = {};
   var occRescheduling = {};
+  var eventColorPickerOpen = {};
   var currentView = 'board';
   var calViewDate = new Date();
   calViewDate.setDate(1);
@@ -1695,10 +1754,14 @@
 
   function dayChipsHtml(iso) {
     var items = getDayEvents(iso).map(function (ev) {
-      return { cls: '', text: (ev.startTime ? formatTime12(ev.startTime) + ' ' : '') + ev.title };
+      var c = resolveEventColor(ev);
+      return {
+        cls: '', text: (ev.startTime ? formatTime12(ev.startTime) + ' ' : '') + ev.title,
+        style: ' style="background:' + c.soft + ';color:' + c.solid + '"'
+      };
     });
     state.tasks.filter(function (t) { return t.dueDate === iso; }).forEach(function (t) {
-      items.push({ cls: ' task', text: t.text });
+      items.push({ cls: ' task', text: t.text, style: '' });
     });
     if (!items.length) return '';
     var MAX = 3;
@@ -1706,7 +1769,7 @@
     var extra = items.length - shown.length;
     var html = '<div class="cal-day-chips">';
     shown.forEach(function (it) {
-      html += '<span class="cal-day-chip' + it.cls + '">' + escapeHtml(it.text) + '</span>';
+      html += '<span class="cal-day-chip' + it.cls + '"' + it.style + '>' + escapeHtml(it.text) + '</span>';
     });
     if (extra > 0) html += '<span class="cal-day-chip more">+' + extra + ' more</span>';
     html += '</div>';
@@ -1720,10 +1783,14 @@
       var cellDate = new Date(year, month, d);
       var iso = isoFromDate(cellDate);
       var items = getDayEvents(iso).map(function (ev) {
-        return { cls: '', text: (ev.startTime ? formatTime12(ev.startTime) + ' ' : '') + ev.title };
+        var c = resolveEventColor(ev);
+        return {
+          cls: '', text: (ev.startTime ? formatTime12(ev.startTime) + ' ' : '') + ev.title,
+          style: ' style="background:' + c.soft + ';color:' + c.solid + '"'
+        };
       });
       state.tasks.filter(function (t) { return t.dueDate === iso; }).forEach(function (t) {
-        items.push({ cls: ' task', text: t.text });
+        items.push({ cls: ' task', text: t.text, style: '' });
       });
       var cls = 'cal-list-day' + (iso === today ? ' today' : '') + (iso === selectedDate ? ' selected' : '') + (!items.length ? ' empty' : '');
       html += '<li>' +
@@ -1734,7 +1801,7 @@
           '</span>' +
           '<span class="cal-list-day-items">' +
             (items.length
-              ? items.map(function (it) { return '<span class="cal-list-day-item' + it.cls + '">' + escapeHtml(it.text) + '</span>'; }).join('')
+              ? items.map(function (it) { return '<span class="cal-list-day-item' + it.cls + '"' + it.style + '>' + escapeHtml(it.text) + '</span>'; }).join('')
               : '<span class="cal-list-day-empty">Nothing scheduled</span>') +
           '</span>' +
         '</button>' +
@@ -1821,11 +1888,15 @@
             '</div>';
         }
 
+        var evColor = resolveEventColor(ev);
+        var colorPickerOpen = !!eventColorPickerOpen[ev.id];
         li.innerHTML =
           '<div class="event-main' + (occStatus === 'done' ? ' occ-done' : '') + '">' +
+            '<button type="button" class="event-color-dot" data-action="toggle-color-picker" style="--dot-color:' + evColor.solid + '" aria-label="Change color"></button>' +
             '<span class="event-time-badge">' + escapeHtml(timeLabel) + '</span>' +
             '<div>' + titleMarkup + '</div>' +
             '<div class="note-area"' + (ev.noteOpen ? '' : ' hidden') + '><textarea data-action="event-note" placeholder="Details...">' + escapeHtml(ev.note || '') + '</textarea></div>' +
+            (colorPickerOpen ? eventColorRowHtml(ev) : '') +
           '</div>' +
           actionsHtml;
         eventListEl.appendChild(li);
@@ -2828,6 +2899,16 @@
     document.getElementById('eventAlertTimeField').hidden = !isReminder;
   });
 
+  var selectedEventColor = '';
+  document.getElementById('eventColorRow').addEventListener('click', function (e) {
+    var btn = e.target.closest('.event-color-swatch');
+    if (!btn) return;
+    selectedEventColor = btn.dataset.color;
+    document.querySelectorAll('#eventColorRow .event-color-swatch').forEach(function (s) {
+      s.classList.toggle('active', s === btn);
+    });
+  });
+
   document.getElementById('eventForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var titleInput = document.getElementById('eventTitle');
@@ -2849,6 +2930,7 @@
       exceptions: {},
       alertLeadMinutes: (!isReminder && alertLeadSelect.value !== '') ? parseInt(alertLeadSelect.value, 10) : null,
       alertTime: (isReminder && alertTimeInput.value) ? alertTimeInput.value : '',
+      color: selectedEventColor || null,
       note: '', noteOpen: false, createdAt: Date.now()
     });
     titleInput.value = '';
@@ -2858,6 +2940,10 @@
     repeatSelect.value = 'none';
     alertLeadSelect.value = '';
     alertTimeInput.value = '';
+    selectedEventColor = '';
+    document.querySelectorAll('#eventColorRow .event-color-swatch').forEach(function (s) {
+      s.classList.toggle('active', s.dataset.color === '');
+    });
     document.getElementById('eventTimeRow').hidden = false;
     document.getElementById('eventAlertLead').hidden = false;
     document.getElementById('eventAlertTimeField').hidden = true;
@@ -2873,8 +2959,18 @@
     if (!li) return;
     var ev = state.events.find(function (x) { return x.id === li.dataset.id; });
     if (!ev) return;
+    if (btn.classList.contains('event-color-swatch')) {
+      ev.color = btn.dataset.color || null;
+      eventColorPickerOpen[ev.id] = false;
+      saveState();
+      renderCalendar();
+      return;
+    }
     var action = btn.dataset.action;
-    if (action === 'toggle-note') {
+    if (action === 'toggle-color-picker') {
+      eventColorPickerOpen[ev.id] = !eventColorPickerOpen[ev.id];
+      renderCalendar();
+    } else if (action === 'toggle-note') {
       ev.noteOpen = !ev.noteOpen;
       saveState();
       renderCalendar();
@@ -2885,6 +2981,7 @@
       state.events = state.events.filter(function (x) { return x.id !== ev.id; });
       delete eventEditing[ev.id];
       delete occRescheduling[ev.id];
+      delete eventColorPickerOpen[ev.id];
       saveState();
       renderCalendar();
       syncReminders();
