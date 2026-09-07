@@ -184,6 +184,12 @@
   .column-hint { font-size: 0.76rem; color: var(--text-muted); margin: 2px 0 14px; }
 
   ul.item-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .habit-tile, .task-row { touch-action: pan-y; }
+  .habit-tile.dragging, .task-row.dragging {
+    position: fixed; z-index: 999; box-shadow: 0 10px 28px rgba(0,0,0,0.4);
+    transform: scale(1.02); opacity: 0.96; touch-action: none; pointer-events: none;
+  }
+  .reorder-placeholder { border: 1.5px dashed var(--border); border-radius: var(--radius-md); background: transparent; }
   .empty-state {
     font-size: 0.82rem; color: var(--text-muted); border: 1px dashed var(--border);
     border-radius: var(--radius-md); padding: 16px; text-align: center;
@@ -1267,6 +1273,8 @@
     state.notes.forEach(function (n) { if (!n.createdAt) n.createdAt = n.updatedAt || Date.now(); });
     state.habits.forEach(function (h) { if (h.note && !h.noteCreatedAt) h.noteCreatedAt = h.noteUpdatedAt = Date.now(); });
     state.tasks.forEach(function (t) { if (t.note && !t.noteCreatedAt) t.noteCreatedAt = t.noteUpdatedAt = Date.now(); });
+    state.habits.forEach(function (h, i) { if (typeof h.sortOrder !== 'number') h.sortOrder = (i + 1) * 1000; });
+    state.tasks.forEach(function (t, i) { if (typeof t.sortOrder !== 'number') t.sortOrder = (i + 1) * 1000; });
     state.events.forEach(function (ev) {
       if (!ev.type) ev.type = 'appointment';
       if (typeof ev.recurrence === 'undefined') ev.recurrence = null;
@@ -1291,6 +1299,11 @@
     state.updatedAt = Date.now();
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     if (typeof schedulePushSync === 'function') schedulePushSync();
+  }
+  function nextSortOrder(list) {
+    var max = 0;
+    list.forEach(function (item) { if (item.sortOrder > max) max = item.sortOrder; });
+    return max + 1000;
   }
 
   function hexToRgb(hex) {
@@ -1568,7 +1581,8 @@
       return;
     }
     var today = todayISO();
-    state.habits.forEach(function (h) {
+    var sortedHabits = state.habits.slice().sort(function (a, b) { return a.sortOrder - b.sortOrder; });
+    sortedHabits.forEach(function (h) {
       var doneToday = h.history.indexOf(today) !== -1;
       var streak = calcStreak(h.history);
       var tier = tierForStreak(streak);
@@ -1632,10 +1646,7 @@
     }
     var sorted = visibleTasks.slice().sort(function (a, b) {
       if (a.done !== b.done) return a.done ? 1 : -1;
-      if (a.dueDate && b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
-      if (a.dueDate) return -1;
-      if (b.dueDate) return 1;
-      return a.createdAt - b.createdAt;
+      return a.sortOrder - b.sortOrder;
     });
     sorted.forEach(function (t) {
       var li = document.createElement('li');
@@ -1991,7 +2002,7 @@
     var input = document.getElementById('habitInput');
     var name = input.value.trim();
     if (!name) return;
-    state.habits.push({ id: uid(), name: name, note: '', noteOpen: false, history: [], reminderTime: '', reminderOpen: false, createdAt: Date.now() });
+    state.habits.push({ id: uid(), name: name, note: '', noteOpen: false, history: [], reminderTime: '', reminderOpen: false, createdAt: Date.now(), sortOrder: nextSortOrder(state.habits) });
     input.value = '';
     saveState();
     renderAll();
@@ -2004,11 +2015,137 @@
     var dateInput = document.getElementById('taskDate');
     var text = input.value.trim();
     if (!text) return;
-    state.tasks.push({ id: uid(), text: text, note: '', noteOpen: false, done: false, dueDate: dateInput.value || null, createdAt: Date.now(), completedAt: null });
+    state.tasks.push({ id: uid(), text: text, note: '', noteOpen: false, done: false, dueDate: dateInput.value || null, createdAt: Date.now(), completedAt: null, sortOrder: nextSortOrder(state.tasks) });
     input.value = '';
     dateInput.value = '';
     saveState();
     renderAll();
+  });
+
+  // ---------- drag to reorder ----------
+  function initDragReorder(listEl, itemSelector, onReordered) {
+    var LONG_PRESS_MS = 380;
+    var MOVE_CANCEL_PX = 10;
+    var EDGE = 70, SCROLL_SPEED = 14;
+    var pressTimer = null, pressInfo = null, drag = null;
+
+    function cleanupPress() {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+      pressInfo = null;
+    }
+
+    listEl.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      var li = e.target.closest(itemSelector);
+      if (!li || !listEl.contains(li)) return;
+      if (e.target.closest('button, input, textarea, a, select')) return;
+      pressInfo = { x: e.clientX, y: e.clientY, li: li, pointerId: e.pointerId };
+      pressTimer = setTimeout(function () {
+        if (pressInfo) startDrag(pressInfo.li, pressInfo.pointerId, pressInfo.y);
+      }, LONG_PRESS_MS);
+    });
+
+    listEl.addEventListener('pointermove', function (e) {
+      if (pressInfo && !drag) {
+        var dx = Math.abs(e.clientX - pressInfo.x), dy = Math.abs(e.clientY - pressInfo.y);
+        if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) cleanupPress();
+      }
+      if (drag && e.pointerId === drag.pointerId) {
+        e.preventDefault();
+        moveDrag(e.clientY);
+      }
+    });
+
+    listEl.addEventListener('pointerup', function (e) {
+      cleanupPress();
+      if (drag && e.pointerId === drag.pointerId) endDrag(false);
+    });
+    listEl.addEventListener('pointercancel', function (e) {
+      cleanupPress();
+      if (drag && e.pointerId === drag.pointerId) endDrag(true);
+    });
+
+    function startDrag(li, pointerId, startY) {
+      cleanupPress();
+      var rect = li.getBoundingClientRect();
+      var placeholder = document.createElement('li');
+      placeholder.className = 'reorder-placeholder';
+      placeholder.style.height = rect.height + 'px';
+      li.parentNode.insertBefore(placeholder, li.nextSibling);
+      drag = { pointerId: pointerId, li: li, placeholder: placeholder, startY: startY, startTop: rect.top };
+      li.classList.add('dragging');
+      li.style.width = rect.width + 'px';
+      li.style.left = rect.left + 'px';
+      li.style.top = rect.top + 'px';
+      try { li.setPointerCapture(pointerId); } catch (err) {}
+      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (err) {} }
+    }
+
+    function moveDrag(clientY) {
+      if (!drag) return;
+      var dy = clientY - drag.startY;
+      drag.li.style.top = (drag.startTop + dy) + 'px';
+      if (clientY < EDGE) window.scrollBy(0, -SCROLL_SPEED);
+      else if (clientY > window.innerHeight - EDGE) window.scrollBy(0, SCROLL_SPEED);
+      repositionPlaceholder(clientY);
+    }
+
+    function repositionPlaceholder(clientY) {
+      var siblings = Array.prototype.slice.call(listEl.children).filter(function (x) {
+        return x !== drag.li && x !== drag.placeholder && x.matches && x.matches(itemSelector);
+      });
+      var target = null;
+      for (var i = 0; i < siblings.length; i++) {
+        var r = siblings[i].getBoundingClientRect();
+        if (clientY < r.top + r.height / 2) { target = siblings[i]; break; }
+      }
+      if (target) {
+        if (drag.placeholder.nextSibling !== target) listEl.insertBefore(drag.placeholder, target);
+      } else if (listEl.lastElementChild !== drag.placeholder) {
+        listEl.appendChild(drag.placeholder);
+      }
+    }
+
+    function endDrag(cancelled) {
+      if (!drag) return;
+      var li = drag.li, placeholder = drag.placeholder, pointerId = drag.pointerId;
+      li.classList.remove('dragging');
+      li.style.position = ''; li.style.top = ''; li.style.left = ''; li.style.width = '';
+      try { li.releasePointerCapture(pointerId); } catch (err) {}
+      if (!cancelled) {
+        var newOrderIds = [];
+        Array.prototype.slice.call(listEl.children).forEach(function (node) {
+          if (node === li) return;
+          if (node === placeholder) { newOrderIds.push(li.dataset.id); return; }
+          if (node.matches && node.matches(itemSelector)) newOrderIds.push(node.dataset.id);
+        });
+        if (placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+        drag = null;
+        onReordered(newOrderIds);
+      } else {
+        if (placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+        drag = null;
+      }
+    }
+  }
+
+  initDragReorder(habitList, 'li.habit-tile', function (orderIds) {
+    orderIds.forEach(function (id, i) {
+      var h = state.habits.find(function (x) { return x.id === id; });
+      if (h) h.sortOrder = (i + 1) * 1000;
+    });
+    saveState();
+    renderHabits();
+  });
+
+  initDragReorder(taskList, 'li.task-row', function (orderIds) {
+    orderIds.forEach(function (id, i) {
+      var t = state.tasks.find(function (x) { return x.id === id; });
+      if (t) t.sortOrder = (i + 1) * 1000;
+    });
+    saveState();
+    renderTasks();
   });
 
   habitList.addEventListener('click', function (e) {
