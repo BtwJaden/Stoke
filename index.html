@@ -1173,6 +1173,7 @@
 
 <script>
 (function () {
+  var BUILD_ID = '2026-09-07-touchaction-fix';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -2653,6 +2654,8 @@
 
     if (diagInfo) {
       var lines = [];
+      lines.push('build: ' + BUILD_ID);
+      lines.push('active cache: checking...');
       var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
       lines.push('standalone mode: ' + standalone);
       lines.push('SDK ready: ' + ready);
@@ -2673,6 +2676,15 @@
         lines.push('(none captured yet)');
       }
       diagInfo.textContent = lines.join('\n');
+
+      if ('caches' in window) {
+        caches.keys().then(function (names) {
+          var cacheLine = 'active cache: ' + (names.length ? names.join(', ') : 'none');
+          var t = diagInfo.textContent.split('\n');
+          var i = t.findIndex(function (l) { return l.indexOf('active cache:') === 0; });
+          if (i !== -1) { t[i] = cacheLine; diagInfo.textContent = t.join('\n'); }
+        });
+      }
 
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function (regs) {
