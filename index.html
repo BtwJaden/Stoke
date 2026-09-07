@@ -199,15 +199,20 @@
     -webkit-user-select: text; user-select: text;
   }
   .habit-tile, .task-row { touch-action: pan-y; }
-  .habit-tile.dragging, .task-row.dragging {
-    /* touch-action deliberately NOT changed here (stays inherited pan-y from the base
-       tile rule) -- changing touch-action mid-gesture is a known trigger for iOS Safari to
-       cancel the active touch outright, which is what was breaking every single drag
-       attempt (confirmed via diagnostics: pointercancel fired the instant this class, and
-       its old touch-action:none, was applied). JS preventDefault() during pointermove
-       already stops native scrolling while dragging, so this isn't even needed. */
+  /* The element actually being touched (.habit-tile/.task-row) never has its position,
+     pointer-events, or touch-action changed during a drag -- diagnostics confirmed changing
+     any of those mid-gesture makes iOS Safari cancel the touch outright, regardless of which
+     one. It only ever gets this one class, which is opacity-only (safe to animate mid-touch;
+     opacity/background changes for press states are ubiquitous on the web without issue). */
+  .habit-tile.drag-source-hidden, .task-row.drag-source-hidden {
+    opacity: 0; height: 0; min-height: 0; margin: 0; padding: 0; border-width: 0; overflow: hidden;
+  }
+  /* The lifted visual is a *separate* cloned element appended to body, never the touched
+     element itself -- see startDrag(). Safe to fully reposition/style since the touch was
+     never associated with it. */
+  .drag-ghost {
     position: fixed; z-index: 999; box-shadow: 0 10px 28px rgba(0,0,0,0.4);
-    transform: scale(1.02); opacity: 0.96; pointer-events: none;
+    transform: scale(1.02); opacity: 0.96; pointer-events: none; margin: 0;
   }
   .reorder-placeholder { border: 1.5px dashed var(--border); border-radius: var(--radius-md); background: transparent; }
   .empty-state {
@@ -1173,7 +1178,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-07-touchaction-fix';
+  var BUILD_ID = '2026-09-07-ghost-clone-drag';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -2112,23 +2117,35 @@
     function startDrag(li, pointerId, startY) {
       cleanupPress();
       var rect = li.getBoundingClientRect();
+
+      // The lifted visual is a separate clone ("ghost"), not the touched element itself.
+      // Earlier versions gave `li` (the element the finger is actually on) position:fixed
+      // and pointer-events:none mid-touch -- diagnostics confirmed iOS Safari cancels the
+      // touch the instant that happens, regardless of touch-action. The ghost is a brand
+      // new element the touch was never associated with, so styling it freely is safe; the
+      // real `li` stays completely untouched (just invisible) so its pointer identity never
+      // changes mid-gesture.
+      var ghost = li.cloneNode(true);
+      ghost.className = li.className + ' drag-ghost';
+      ghost.style.width = rect.width + 'px';
+      ghost.style.height = rect.height + 'px';
+      ghost.style.left = rect.left + 'px';
+      ghost.style.top = rect.top + 'px';
+      document.body.appendChild(ghost);
+
       var placeholder = document.createElement('li');
       placeholder.className = 'reorder-placeholder';
       placeholder.style.height = rect.height + 'px';
       li.parentNode.insertBefore(placeholder, li.nextSibling);
-      drag = { pointerId: pointerId, li: li, placeholder: placeholder, startY: startY, startTop: rect.top };
-      li.classList.add('dragging');
-      li.style.width = rect.width + 'px';
-      li.style.left = rect.left + 'px';
-      li.style.top = rect.top + 'px';
-      try { li.setPointerCapture(pointerId); } catch (err) {}
-      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (err) {} }
+
+      drag = { pointerId: pointerId, li: li, ghost: ghost, placeholder: placeholder, startY: startY, startTop: rect.top };
+      li.classList.add('drag-source-hidden');
     }
 
     function moveDrag(clientY) {
       if (!drag) return;
       var dy = clientY - drag.startY;
-      drag.li.style.top = (drag.startTop + dy) + 'px';
+      drag.ghost.style.top = (drag.startTop + dy) + 'px';
       if (clientY < EDGE) window.scrollBy(0, -SCROLL_SPEED);
       else if (clientY > window.innerHeight - EDGE) window.scrollBy(0, SCROLL_SPEED);
       repositionPlaceholder(clientY);
@@ -2152,10 +2169,9 @@
 
     function endDrag(cancelled) {
       if (!drag) return;
-      var li = drag.li, placeholder = drag.placeholder, pointerId = drag.pointerId;
-      li.classList.remove('dragging');
-      li.style.position = ''; li.style.top = ''; li.style.left = ''; li.style.width = '';
-      try { li.releasePointerCapture(pointerId); } catch (err) {}
+      var li = drag.li, placeholder = drag.placeholder, ghost = drag.ghost;
+      li.classList.remove('drag-source-hidden');
+      if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
       if (!cancelled) {
         var newOrderIds = [];
         Array.prototype.slice.call(listEl.children).forEach(function (node) {
