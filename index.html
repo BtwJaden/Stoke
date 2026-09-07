@@ -193,6 +193,10 @@
   .habit-tile input, .habit-tile textarea, .task-row input, .task-row textarea {
     -webkit-user-select: text !important; user-select: text !important;
   }
+  body.reorder-active, body.reorder-active * {
+    -webkit-user-select: none !important; user-select: none !important;
+    -webkit-touch-callout: none !important; -webkit-user-drag: none !important;
+  }
   .habit-tile.dragging, .task-row.dragging {
     position: fixed; z-index: 999; box-shadow: 0 10px 28px rgba(0,0,0,0.4);
     transform: scale(1.02); opacity: 0.96; touch-action: none; pointer-events: none;
@@ -2042,6 +2046,12 @@
       pressTimer = null;
       pressInfo = null;
     }
+    // Separate from cleanupPress: startDrag() calls cleanupPress() too (to clear the
+    // now-fired timer), but the guard must stay on through the whole drag -- only release it
+    // once there's truly no active press AND no active drag.
+    function releaseGuardIfIdle() {
+      if (!pressInfo && !drag) document.body.classList.remove('reorder-active');
+    }
 
     listEl.addEventListener('pointerdown', function (e) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -2049,6 +2059,11 @@
       if (!li || !listEl.contains(li)) return;
       if (e.target.closest('button, input, textarea, a, select')) return;
       if (e.pointerType === 'touch') e.preventDefault();
+      // Selection-suppression on the tile itself only protects wherever the touch STARTED --
+      // once dragging moves the finger over other page content (which never opted out of
+      // selection), iOS's own long-press-to-select can kick in on THAT content instead. So
+      // disable selection page-wide for the duration of the press/drag, not just on the tile.
+      document.body.classList.add('reorder-active');
       pressInfo = { x: e.clientX, y: e.clientY, li: li, pointerId: e.pointerId };
       pressTimer = setTimeout(function () {
         if (pressInfo) startDrag(pressInfo.li, pressInfo.pointerId, pressInfo.y);
@@ -2062,7 +2077,7 @@
     document.addEventListener('pointermove', function (e) {
       if (pressInfo && !drag && e.pointerId === pressInfo.pointerId) {
         var dx = Math.abs(e.clientX - pressInfo.x), dy = Math.abs(e.clientY - pressInfo.y);
-        if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) cleanupPress();
+        if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) { cleanupPress(); releaseGuardIfIdle(); }
       }
       if (drag && e.pointerId === drag.pointerId) {
         e.preventDefault();
@@ -2073,10 +2088,12 @@
     document.addEventListener('pointerup', function (e) {
       if (pressInfo && e.pointerId === pressInfo.pointerId) cleanupPress();
       if (drag && e.pointerId === drag.pointerId) endDrag(false);
+      releaseGuardIfIdle();
     });
     document.addEventListener('pointercancel', function (e) {
       if (pressInfo && e.pointerId === pressInfo.pointerId) cleanupPress();
       if (drag && e.pointerId === drag.pointerId) endDrag(true);
+      releaseGuardIfIdle();
     });
 
     function startDrag(li, pointerId, startY) {
