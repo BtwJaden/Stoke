@@ -1178,7 +1178,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-07-ghost-clone-drag';
+  var BUILD_ID = '2026-09-07-touch-events-rewrite';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -2061,6 +2061,15 @@
   });
 
   // ---------- drag to reorder ----------
+  // Touch input is handled via raw Touch Events (touchstart/touchmove/touchend/touchcancel),
+  // not Pointer Events. Pointer Events on iOS Safari proved unreliable for this: every prior
+  // attempt (removing touch-action changes, then removing position/pointer-events changes
+  // entirely via a ghost-clone rewrite) still hit an immediate pointercancel the instant
+  // startDrag() made ANY change at all, confirmed via on-device diagnostics logging across
+  // multiple real-device test rounds. Touch Events are the older, more battle-tested API for
+  // custom gesture work on iOS and don't share whatever gap causes that. Mouse input (for
+  // desktop dev/testing) is handled separately via plain mouse events, since mice were never
+  // implicated in the cancellation and don't need this workaround.
   function initDragReorder(listEl, itemSelector, onReordered) {
     var LONG_PRESS_MS = 380;
     var MOVE_CANCEL_PX = 14;
@@ -2073,48 +2082,78 @@
       pressInfo = null;
     }
 
-    listEl.addEventListener('pointerdown', function (e) {
-      console.log('drag: pointerdown type=' + e.pointerType + ' button=' + e.button + ' target=' + (e.target && e.target.tagName));
-      if (e.pointerType === 'mouse' && e.button !== 0) { console.log('drag: bailed (mouse non-primary button)'); return; }
-      var li = e.target.closest(itemSelector);
-      if (!li || !listEl.contains(li)) { console.log('drag: bailed (no matching tile under touch)'); return; }
-      if (e.target.closest('button, input, textarea, a, select')) { console.log('drag: bailed (touched an interactive child)'); return; }
-      if (e.pointerType === 'touch') e.preventDefault();
-      console.log('drag: press tracking started, id=' + e.pointerId);
-      pressInfo = { x: e.clientX, y: e.clientY, li: li, pointerId: e.pointerId };
+    function findTouch(list, id) {
+      if (!list) return null;
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].identifier === id) return list[i];
+      }
+      return null;
+    }
+
+    function beginPress(li, x, y, id) {
+      console.log('drag: press tracking started, id=' + id);
+      pressInfo = { x: x, y: y, li: li, id: id };
       pressTimer = setTimeout(function () {
-        if (pressInfo) { console.log('drag: long-press timer fired, starting drag'); startDrag(pressInfo.li, pressInfo.pointerId, pressInfo.y); }
+        if (pressInfo) { console.log('drag: long-press timer fired, starting drag'); startDrag(pressInfo.li, pressInfo.id, pressInfo.y); }
         else { console.log('drag: long-press timer fired but pressInfo was already cleared'); }
       }, LONG_PRESS_MS);
+    }
+
+    function checkMoveCancel(x, y) {
+      if (!pressInfo || drag) return;
+      var dx = Math.abs(x - pressInfo.x), dy = Math.abs(y - pressInfo.y);
+      if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) { console.log('drag: press cancelled by movement before long-press fired'); cleanupPress(); }
+    }
+
+    // ---- touch path ----
+    listEl.addEventListener('touchstart', function (e) {
+      var touch = e.changedTouches[0];
+      var li = e.target.closest ? e.target.closest(itemSelector) : null;
+      if (!li || !listEl.contains(li)) return;
+      if (e.target.closest('button, input, textarea, a, select')) return;
+      beginPress(li, touch.clientX, touch.clientY, touch.identifier);
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function (e) {
+      var pt = pressInfo && findTouch(e.changedTouches, pressInfo.id);
+      if (pt) checkMoveCancel(pt.clientX, pt.clientY);
+      var dt = drag && findTouch(e.changedTouches, drag.id);
+      if (dt) { e.preventDefault(); moveDrag(dt.clientY); }
+    }, { passive: false });
+
+    document.addEventListener('touchend', function (e) {
+      var pt = pressInfo && findTouch(e.changedTouches, pressInfo.id);
+      if (pt) cleanupPress();
+      var dt = drag && findTouch(e.changedTouches, drag.id);
+      console.log('drag: touchend hadPress=' + !!pt + ' hadDrag=' + !!dt);
+      if (dt) endDrag(false);
+    });
+    document.addEventListener('touchcancel', function (e) {
+      var pt = pressInfo && findTouch(e.changedTouches, pressInfo.id);
+      if (pt) cleanupPress();
+      var dt = drag && findTouch(e.changedTouches, drag.id);
+      console.log('drag: touchcancel hadPress=' + !!pt + ' hadDrag=' + !!dt);
+      if (dt) endDrag(true);
     });
 
-    // pointermove/up/cancel are bound on document, not listEl: once a drag starts, the
-    // lifted tile can end up hit-testing outside the list's bounds (e.g. near a screen
-    // edge for auto-scroll), and a listEl-scoped listener would stop receiving events at
-    // that point, leaving `drag` stuck set and blocking the next long-press from starting.
-    document.addEventListener('pointermove', function (e) {
-      if (pressInfo && !drag && e.pointerId === pressInfo.pointerId) {
-        var dx = Math.abs(e.clientX - pressInfo.x), dy = Math.abs(e.clientY - pressInfo.y);
-        if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) { console.log('drag: press cancelled by movement before long-press fired, dx=' + dx.toFixed(0) + ' dy=' + dy.toFixed(0)); cleanupPress(); }
-      }
-      if (drag && e.pointerId === drag.pointerId) {
-        e.preventDefault();
-        moveDrag(e.clientY);
-      }
+    // ---- mouse path (desktop only; never implicated in the iOS bug) ----
+    listEl.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return;
+      var li = e.target.closest(itemSelector);
+      if (!li || !listEl.contains(li)) return;
+      if (e.target.closest('button, input, textarea, a, select')) return;
+      beginPress(li, e.clientX, e.clientY, 'mouse');
+    });
+    document.addEventListener('mousemove', function (e) {
+      if (pressInfo && pressInfo.id === 'mouse') checkMoveCancel(e.clientX, e.clientY);
+      if (drag && drag.id === 'mouse') moveDrag(e.clientY);
+    });
+    document.addEventListener('mouseup', function (e) {
+      if (pressInfo && pressInfo.id === 'mouse') cleanupPress();
+      if (drag && drag.id === 'mouse') endDrag(false);
     });
 
-    document.addEventListener('pointerup', function (e) {
-      console.log('drag: pointerup id=' + e.pointerId + ' hadPress=' + !!pressInfo + ' hadDrag=' + !!drag);
-      if (pressInfo && e.pointerId === pressInfo.pointerId) cleanupPress();
-      if (drag && e.pointerId === drag.pointerId) endDrag(false);
-    });
-    document.addEventListener('pointercancel', function (e) {
-      console.log('drag: pointercancel id=' + e.pointerId + ' hadPress=' + !!pressInfo + ' hadDrag=' + !!drag);
-      if (pressInfo && e.pointerId === pressInfo.pointerId) cleanupPress();
-      if (drag && e.pointerId === drag.pointerId) endDrag(true);
-    });
-
-    function startDrag(li, pointerId, startY) {
+    function startDrag(li, id, startY) {
       cleanupPress();
       var rect = li.getBoundingClientRect();
 
@@ -2138,7 +2177,7 @@
       placeholder.style.height = rect.height + 'px';
       li.parentNode.insertBefore(placeholder, li.nextSibling);
 
-      drag = { pointerId: pointerId, li: li, ghost: ghost, placeholder: placeholder, startY: startY, startTop: rect.top };
+      drag = { id: id, li: li, ghost: ghost, placeholder: placeholder, startY: startY, startTop: rect.top };
       li.classList.add('drag-source-hidden');
     }
 
