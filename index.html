@@ -2059,11 +2059,6 @@
       if (!li || !listEl.contains(li)) return;
       if (e.target.closest('button, input, textarea, a, select')) return;
       if (e.pointerType === 'touch') e.preventDefault();
-      // Selection-suppression on the tile itself only protects wherever the touch STARTED --
-      // once dragging moves the finger over other page content (which never opted out of
-      // selection), iOS's own long-press-to-select can kick in on THAT content instead. So
-      // disable selection page-wide for the duration of the press/drag, not just on the tile.
-      document.body.classList.add('reorder-active');
       pressInfo = { x: e.clientX, y: e.clientY, li: li, pointerId: e.pointerId };
       pressTimer = setTimeout(function () {
         if (pressInfo) startDrag(pressInfo.li, pressInfo.pointerId, pressInfo.y);
@@ -2104,6 +2099,12 @@
       placeholder.style.height = rect.height + 'px';
       li.parentNode.insertBefore(placeholder, li.nextSibling);
       drag = { pointerId: pointerId, li: li, placeholder: placeholder, startY: startY, startTop: rect.top };
+      // Applied here (once a drag is confirmed), not at pointerdown: toggling a page-wide
+      // style like this WHILE a touch is still ambiguous (mid hold, before we know it's a
+      // drag) risks iOS Safari reading the change as a signal to cancel the touch outright.
+      // By this point the hold has already survived LONG_PRESS_MS untouched, so the touch is
+      // well-established and safe to restyle around.
+      document.body.classList.add('reorder-active');
       li.classList.add('dragging');
       li.style.width = rect.width + 'px';
       li.style.left = rect.left + 'px';
