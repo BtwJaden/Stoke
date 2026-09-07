@@ -2033,7 +2033,7 @@
   // ---------- drag to reorder ----------
   function initDragReorder(listEl, itemSelector, onReordered) {
     var LONG_PRESS_MS = 380;
-    var MOVE_CANCEL_PX = 10;
+    var MOVE_CANCEL_PX = 14;
     var EDGE = 70, SCROLL_SPEED = 14;
     var pressTimer = null, pressInfo = null, drag = null;
 
@@ -2048,14 +2048,19 @@
       var li = e.target.closest(itemSelector);
       if (!li || !listEl.contains(li)) return;
       if (e.target.closest('button, input, textarea, a, select')) return;
+      if (e.pointerType === 'touch') e.preventDefault();
       pressInfo = { x: e.clientX, y: e.clientY, li: li, pointerId: e.pointerId };
       pressTimer = setTimeout(function () {
         if (pressInfo) startDrag(pressInfo.li, pressInfo.pointerId, pressInfo.y);
       }, LONG_PRESS_MS);
     });
 
-    listEl.addEventListener('pointermove', function (e) {
-      if (pressInfo && !drag) {
+    // pointermove/up/cancel are bound on document, not listEl: once a drag starts, the
+    // lifted tile can end up hit-testing outside the list's bounds (e.g. near a screen
+    // edge for auto-scroll), and a listEl-scoped listener would stop receiving events at
+    // that point, leaving `drag` stuck set and blocking the next long-press from starting.
+    document.addEventListener('pointermove', function (e) {
+      if (pressInfo && !drag && e.pointerId === pressInfo.pointerId) {
         var dx = Math.abs(e.clientX - pressInfo.x), dy = Math.abs(e.clientY - pressInfo.y);
         if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) cleanupPress();
       }
@@ -2065,12 +2070,12 @@
       }
     });
 
-    listEl.addEventListener('pointerup', function (e) {
-      cleanupPress();
+    document.addEventListener('pointerup', function (e) {
+      if (pressInfo && e.pointerId === pressInfo.pointerId) cleanupPress();
       if (drag && e.pointerId === drag.pointerId) endDrag(false);
     });
-    listEl.addEventListener('pointercancel', function (e) {
-      cleanupPress();
+    document.addEventListener('pointercancel', function (e) {
+      if (pressInfo && e.pointerId === pressInfo.pointerId) cleanupPress();
       if (drag && e.pointerId === drag.pointerId) endDrag(true);
     });
 
