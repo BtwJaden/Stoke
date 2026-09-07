@@ -645,7 +645,28 @@
   .task-add .add-submit { background: var(--leaf); }
 
   /* ---------- notebook ---------- */
-  .note-card { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; background: var(--surface-2); flex: none; }
+  .note-card { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); flex: none; overflow: hidden; }
+  .note-card-head {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer;
+  }
+  .note-card.open .note-card-head { padding-bottom: 4px; }
+  .note-chevron {
+    flex: none; width: 14px; height: 14px; color: var(--text-muted);
+    transition: transform 0.15s ease; transform: rotate(0deg);
+  }
+  .note-chevron.open { transform: rotate(90deg); }
+  .note-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .note-head-title {
+    font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .note-head-title.empty { color: var(--text-muted); font-weight: 500; }
+  .note-head-preview {
+    font-size: 0.8rem; color: var(--text-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .note-head-date { flex: none; font-size: 0.76rem; color: var(--text-muted); }
+  .note-card-body { padding: 4px 14px 14px; }
   .note-title {
     width: 100%; border: none; background: transparent; font-family: var(--font-display); font-weight: 600;
     font-size: 1.05rem; color: var(--text); margin-bottom: 6px; padding: 0;
@@ -1492,6 +1513,7 @@
   var eventEditing = {};
   var occRescheduling = {};
   var eventColorPickerOpen = {};
+  var noteOpen = {};
   var currentView = 'board';
   var calViewDate = new Date();
   calViewDate.setDate(1);
@@ -1716,6 +1738,16 @@
     });
   }
 
+  function notePreview(body) {
+    var flat = (body || '').replace(/\s+/g, ' ').trim();
+    if (!flat) return '';
+    return flat.length > 70 ? flat.slice(0, 70) + '…' : flat;
+  }
+  function shortDate(ts) {
+    if (!ts) return '';
+    return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
   function renderNotes() {
     document.getElementById('noteCount').textContent = state.notes.length;
     noteCards.innerHTML = '';
@@ -1725,13 +1757,30 @@
     }
     var sorted = state.notes.slice().sort(function (a, b) { return b.updatedAt - a.updatedAt; });
     sorted.forEach(function (n) {
+      var open = !!noteOpen[n.id];
       var card = document.createElement('div');
-      card.className = 'note-card';
+      card.className = 'note-card' + (open ? ' open' : '');
       card.dataset.id = n.id;
-      card.innerHTML =
-        '<input class="note-title" data-action="note-title" value="' + escapeAttr(n.title) + '" placeholder="Untitled">' +
-        '<textarea class="note-body" data-action="note-body" placeholder="Write something...">' + escapeHtml(n.body) + '</textarea>' +
-        '<div class="note-footer">' + noteTimestampBlock(n.createdAt, n.updatedAt, 'note') + '<button class="icon-btn danger" data-action="delete-note" aria-label="Delete note"><svg><use href="#icon-x"/></svg></button></div>';
+      var preview = notePreview(n.body);
+      var head =
+        '<div class="note-card-head" data-action="toggle-note">' +
+          '<svg class="note-chevron' + (open ? ' open' : '') + '" aria-hidden="true"><use href="#icon-chevron-right"/></svg>' +
+          (open ? '<div class="note-head-text"></div>' :
+            '<div class="note-head-text">' +
+              '<span class="note-head-title' + (n.title ? '' : ' empty') + '">' + escapeHtml(n.title || 'Untitled') + '</span>' +
+              (preview ? '<span class="note-head-preview">' + escapeHtml(preview) + '</span>' : '') +
+            '</div>') +
+          '<span class="note-head-date">' + shortDate(n.updatedAt || n.createdAt) + '</span>' +
+          '<button type="button" class="icon-btn danger" data-action="delete-note" aria-label="Delete note"><svg><use href="#icon-x"/></svg></button>' +
+        '</div>';
+      var bodyHtml = open ?
+        '<div class="note-card-body">' +
+          '<input class="note-title" data-action="note-title" value="' + escapeAttr(n.title) + '" placeholder="Untitled">' +
+          '<textarea class="note-body" data-action="note-body" placeholder="Write something...">' + escapeHtml(n.body) + '</textarea>' +
+          '<div class="note-footer">' + noteTimestampBlock(n.createdAt, n.updatedAt, 'note') + '</div>' +
+        '</div>'
+        : '';
+      card.innerHTML = head + bodyHtml;
       noteCards.appendChild(card);
     });
   }
@@ -2409,7 +2458,9 @@
 
   document.getElementById('addNoteBtn').addEventListener('click', function () {
     var now = Date.now();
-    state.notes.push({ id: uid(), title: '', body: '', createdAt: now, updatedAt: now });
+    var id = uid();
+    state.notes.push({ id: id, title: '', body: '', createdAt: now, updatedAt: now });
+    noteOpen[id] = true;
     saveState();
     renderNotes();
     checkAchievements();
@@ -2430,12 +2481,21 @@
   });
 
   noteCards.addEventListener('click', function (e) {
-    var btn = e.target.closest('button[data-action="delete-note"]');
-    if (!btn) return;
     var card = e.target.closest('.note-card');
-    state.notes = state.notes.filter(function (n) { return n.id !== card.dataset.id; });
-    saveState();
-    renderNotes();
+    if (!card) return;
+    var deleteBtn = e.target.closest('button[data-action="delete-note"]');
+    if (deleteBtn) {
+      state.notes = state.notes.filter(function (n) { return n.id !== card.dataset.id; });
+      delete noteOpen[card.dataset.id];
+      saveState();
+      renderNotes();
+      return;
+    }
+    var head = e.target.closest('[data-action="toggle-note"]');
+    if (head) {
+      noteOpen[card.dataset.id] = !noteOpen[card.dataset.id];
+      renderNotes();
+    }
   });
 
   // ---------- day details modal ----------
