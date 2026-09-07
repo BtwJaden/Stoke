@@ -1193,6 +1193,18 @@
       orig.apply(console, arguments);
     };
   });
+  window.addEventListener('error', function (e) {
+    var msg = '[uncaught] ' + (e.message || 'Error') + ' at ' + (e.filename || '?') + ':' + (e.lineno || '?') + ':' + (e.colno || '?');
+    if (e.error && e.error.stack) msg += ' | ' + e.error.stack;
+    capturedLogs.push(msg);
+    if (capturedLogs.length > MAX_CAPTURED_LOGS) capturedLogs.shift();
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var reason = e.reason;
+    var text = reason instanceof Error ? (reason.name + ': ' + reason.message + (reason.stack ? ' | ' + reason.stack : '')) : String(reason);
+    capturedLogs.push('[unhandledrejection] ' + text);
+    if (capturedLogs.length > MAX_CAPTURED_LOGS) capturedLogs.shift();
+  });
 
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(function (OneSignal) {
