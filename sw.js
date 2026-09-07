@@ -1,6 +1,6 @@
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-var CACHE_NAME = 'stoke-cache-v2';
+var CACHE_NAME = 'stoke-cache-v3';
 var APP_SHELL = [
   './',
   './index.html',
@@ -34,20 +34,24 @@ self.addEventListener('activate', function (event) {
   self.clients.claim();
 });
 
+// Network-first, not cache-first: this app deploys often, and cache-first meant every
+// update needed two page loads to show up (load N serves the still-stale cache while
+// quietly refreshing it in the background; only load N+1 shows the change) -- and in
+// practice, real users kept landing back on stale code even after several reload
+// attempts. Network-first always serves the latest content when online, and only falls
+// back to the cache for offline use.
 self.addEventListener('fetch', function (event) {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then(function (cached) {
-      var networkFetch = fetch(event.request).then(function (response) {
-        if (response && response.status === 200) {
-          var copy = response.clone();
-          caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copy); });
-        }
-        return response;
-      }).catch(function () { return cached; });
-
-      return cached || networkFetch;
+    fetch(event.request).then(function (response) {
+      if (response && response.status === 200) {
+        var copy = response.clone();
+        caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copy); });
+      }
+      return response;
+    }).catch(function () {
+      return caches.match(event.request);
     })
   );
 });
