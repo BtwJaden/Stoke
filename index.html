@@ -184,7 +184,9 @@
   .column-hint { font-size: 0.76rem; color: var(--text-muted); margin: 2px 0 14px; }
 
   ul.item-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  .habit-tile, .task-row { touch-action: pan-y; }
+  .habit-tile, .task-row {
+    touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
   .habit-tile.dragging, .task-row.dragging {
     position: fixed; z-index: 999; box-shadow: 0 10px 28px rgba(0,0,0,0.4);
     transform: scale(1.02); opacity: 0.96; touch-action: none; pointer-events: none;
