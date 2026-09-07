@@ -2062,14 +2062,17 @@
     }
 
     listEl.addEventListener('pointerdown', function (e) {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      console.log('drag: pointerdown type=' + e.pointerType + ' button=' + e.button + ' target=' + (e.target && e.target.tagName));
+      if (e.pointerType === 'mouse' && e.button !== 0) { console.log('drag: bailed (mouse non-primary button)'); return; }
       var li = e.target.closest(itemSelector);
-      if (!li || !listEl.contains(li)) return;
-      if (e.target.closest('button, input, textarea, a, select')) return;
+      if (!li || !listEl.contains(li)) { console.log('drag: bailed (no matching tile under touch)'); return; }
+      if (e.target.closest('button, input, textarea, a, select')) { console.log('drag: bailed (touched an interactive child)'); return; }
       if (e.pointerType === 'touch') e.preventDefault();
+      console.log('drag: press tracking started, id=' + e.pointerId);
       pressInfo = { x: e.clientX, y: e.clientY, li: li, pointerId: e.pointerId };
       pressTimer = setTimeout(function () {
-        if (pressInfo) startDrag(pressInfo.li, pressInfo.pointerId, pressInfo.y);
+        if (pressInfo) { console.log('drag: long-press timer fired, starting drag'); startDrag(pressInfo.li, pressInfo.pointerId, pressInfo.y); }
+        else { console.log('drag: long-press timer fired but pressInfo was already cleared'); }
       }, LONG_PRESS_MS);
     });
 
@@ -2080,7 +2083,7 @@
     document.addEventListener('pointermove', function (e) {
       if (pressInfo && !drag && e.pointerId === pressInfo.pointerId) {
         var dx = Math.abs(e.clientX - pressInfo.x), dy = Math.abs(e.clientY - pressInfo.y);
-        if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) cleanupPress();
+        if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) { console.log('drag: press cancelled by movement before long-press fired, dx=' + dx.toFixed(0) + ' dy=' + dy.toFixed(0)); cleanupPress(); }
       }
       if (drag && e.pointerId === drag.pointerId) {
         e.preventDefault();
@@ -2089,10 +2092,12 @@
     });
 
     document.addEventListener('pointerup', function (e) {
+      console.log('drag: pointerup id=' + e.pointerId + ' hadPress=' + !!pressInfo + ' hadDrag=' + !!drag);
       if (pressInfo && e.pointerId === pressInfo.pointerId) cleanupPress();
       if (drag && e.pointerId === drag.pointerId) endDrag(false);
     });
     document.addEventListener('pointercancel', function (e) {
+      console.log('drag: pointercancel id=' + e.pointerId + ' hadPress=' + !!pressInfo + ' hadDrag=' + !!drag);
       if (pressInfo && e.pointerId === pressInfo.pointerId) cleanupPress();
       if (drag && e.pointerId === drag.pointerId) endDrag(true);
     });
