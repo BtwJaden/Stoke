@@ -420,6 +420,18 @@
     background: var(--dot-color); padding: 0; vertical-align: middle; margin-right: 6px; flex: none;
   }
   .inline-color-row { margin-top: 8px; }
+  .occ-hint {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--surface-2);
+    padding: 8px 10px; font-size: 0.78rem; color: var(--text-muted);
+  }
+  .occ-hint-text { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+  .occ-hint-text svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; stroke: currentColor; fill: none; }
+  .occ-hint-dismiss {
+    flex: none; background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+    font-family: var(--font-body); font-size: 0.76rem; padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .occ-hint-dismiss:hover { border-color: var(--ink); color: var(--text); }
   .settings-input {
     background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
     font-family: var(--font-body); font-size: 0.84rem; padding: 9px 10px; border-radius: var(--radius-sm);
@@ -1326,6 +1338,7 @@
     if (!state.unlockedAchievements) state.unlockedAchievements = [];
     if (!state.stats) state.stats = { tasksCompletedTotal: 0 };
     if (typeof state.stats.tasksCompletedTotal !== 'number') state.stats.tasksCompletedTotal = 0;
+    if (typeof state.hasSeenOccHint === 'undefined') state.hasSeenOccHint = false;
     if (!state.accentTheme) state.accentTheme = 'ember';
     if (typeof state.customAccent === 'undefined') state.customAccent = '';
     if (!state.bgTheme) state.bgTheme = 'default';
@@ -1945,8 +1958,22 @@
     var dayEvents = getDayEvents(selectedDate);
 
     eventListEl.innerHTML = '';
+    var showOccHint = !state.hasSeenOccHint && dayEvents.some(function (ev) { return !!ev.recurrence; });
+    if (showOccHint) {
+      var hint = document.createElement('li');
+      hint.className = 'occ-hint';
+      hint.innerHTML =
+        '<span class="occ-hint-text">' +
+          '<svg><use href="#icon-check"/></svg>Done' +
+          '<svg><use href="#icon-skip"/></svg>Skip' +
+          '<svg><use href="#icon-calendar"/></svg>Move' +
+          '<svg><use href="#icon-x"/></svg>Delete' +
+        '</span>' +
+        '<button type="button" class="occ-hint-dismiss" data-action="dismiss-occ-hint">Got it</button>';
+      eventListEl.appendChild(hint);
+    }
     if (!dayEvents.length) {
-      eventListEl.innerHTML = '<li class="empty-state">Nothing on the books.</li>';
+      eventListEl.innerHTML += '<li class="empty-state">Nothing on the books.</li>';
     } else {
       dayEvents.forEach(function (ev) {
         var li = document.createElement('li');
@@ -1969,10 +1996,10 @@
           var rescheduleOpen = !!occRescheduling[ev.id];
           actionsHtml =
             '<div class="item-actions">' +
-              '<button class="icon-btn' + (occStatus === 'done' ? ' has-reminder' : '') + '" data-action="occ-complete" aria-label="Mark done"><svg><use href="#icon-check"/></svg></button>' +
-              '<button class="icon-btn" data-action="occ-skip" aria-label="Skip this occurrence"><svg><use href="#icon-skip"/></svg></button>' +
-              '<button class="icon-btn' + (rescheduleOpen ? ' has-reminder' : '') + '" data-action="occ-reschedule" aria-label="Reschedule this occurrence"><svg><use href="#icon-calendar"/></svg></button>' +
-              '<button class="icon-btn danger" data-action="delete-event" aria-label="Delete series"><svg><use href="#icon-x"/></svg></button>' +
+              '<button class="icon-btn' + (occStatus === 'done' ? ' has-reminder' : '') + '" data-action="occ-complete" aria-label="Mark done" title="Mark done"><svg><use href="#icon-check"/></svg></button>' +
+              '<button class="icon-btn" data-action="occ-skip" aria-label="Skip this occurrence" title="Skip"><svg><use href="#icon-skip"/></svg></button>' +
+              '<button class="icon-btn' + (rescheduleOpen ? ' has-reminder' : '') + '" data-action="occ-reschedule" aria-label="Reschedule this occurrence" title="Move to a different date"><svg><use href="#icon-calendar"/></svg></button>' +
+              '<button class="icon-btn danger" data-action="delete-event" aria-label="Delete series" title="Delete"><svg><use href="#icon-x"/></svg></button>' +
             '</div>' +
             (rescheduleOpen
               ? '<div class="reschedule-row"><input type="date" data-action="reschedule-date-input" value="' + selectedDate + '"><button class="icon-btn" data-action="confirm-reschedule" aria-label="Confirm new date"><svg><use href="#icon-check"/></svg></button></div>'
@@ -3261,6 +3288,12 @@
   eventListEl.addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
+    if (btn.dataset.action === 'dismiss-occ-hint') {
+      state.hasSeenOccHint = true;
+      saveState();
+      renderCalendar();
+      return;
+    }
     var li = e.target.closest('li.event-row');
     if (!li) return;
     var ev = state.events.find(function (x) { return x.id === li.dataset.id; });
