@@ -432,6 +432,13 @@
     font-family: var(--font-body); font-size: 0.76rem; padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer;
   }
   .occ-hint-dismiss:hover { border-color: var(--ink); color: var(--text); }
+  .occ-hint-collapsed { display: flex; justify-content: flex-end; }
+  .occ-hint-chip {
+    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
+    color: var(--text-muted); font-family: var(--font-body); font-size: 0.72rem; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .occ-hint-chip:hover { border-color: var(--ink); color: var(--text); }
   .settings-input {
     background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
     font-family: var(--font-body); font-size: 0.84rem; padding: 9px 10px; border-radius: var(--radius-sm);
@@ -1211,7 +1218,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-07-touch-events-rewrite';
+  var BUILD_ID = '2026-09-07-occ-hint-toggle';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -1527,6 +1534,7 @@
   var occRescheduling = {};
   var eventColorPickerOpen = {};
   var noteOpen = {};
+  var occHintExpanded = false;
   var currentView = 'board';
   var calViewDate = new Date();
   calViewDate.setDate(1);
@@ -1958,18 +1966,23 @@
     var dayEvents = getDayEvents(selectedDate);
 
     eventListEl.innerHTML = '';
-    var showOccHint = !state.hasSeenOccHint && dayEvents.some(function (ev) { return !!ev.recurrence; });
-    if (showOccHint) {
+    var hasRecurring = dayEvents.some(function (ev) { return !!ev.recurrence; });
+    if (hasRecurring) {
       var hint = document.createElement('li');
-      hint.className = 'occ-hint';
-      hint.innerHTML =
-        '<span class="occ-hint-text">' +
-          '<svg><use href="#icon-check"/></svg>Done' +
-          '<svg><use href="#icon-skip"/></svg>Skip' +
-          '<svg><use href="#icon-calendar"/></svg>Move' +
-          '<svg><use href="#icon-x"/></svg>Delete' +
-        '</span>' +
-        '<button type="button" class="occ-hint-dismiss" data-action="dismiss-occ-hint">Got it</button>';
+      if (!state.hasSeenOccHint || occHintExpanded) {
+        hint.className = 'occ-hint';
+        hint.innerHTML =
+          '<span class="occ-hint-text">' +
+            '<svg><use href="#icon-check"/></svg>Done' +
+            '<svg><use href="#icon-skip"/></svg>Skip' +
+            '<svg><use href="#icon-calendar"/></svg>Move' +
+            '<svg><use href="#icon-x"/></svg>Delete' +
+          '</span>' +
+          '<button type="button" class="occ-hint-dismiss" data-action="dismiss-occ-hint">Got it</button>';
+      } else {
+        hint.className = 'occ-hint-collapsed';
+        hint.innerHTML = '<button type="button" class="occ-hint-chip" data-action="expand-occ-hint" title="What do these icons mean?">?</button>';
+      }
       eventListEl.appendChild(hint);
     }
     if (!dayEvents.length) {
@@ -3290,7 +3303,13 @@
     if (!btn) return;
     if (btn.dataset.action === 'dismiss-occ-hint') {
       state.hasSeenOccHint = true;
+      occHintExpanded = false;
       saveState();
+      renderCalendar();
+      return;
+    }
+    if (btn.dataset.action === 'expand-occ-hint') {
+      occHintExpanded = true;
       renderCalendar();
       return;
     }
