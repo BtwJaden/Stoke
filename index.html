@@ -681,37 +681,6 @@
   .habit-add .add-submit { background: var(--ember); }
   .task-add .add-submit { background: var(--leaf); }
 
-  /* ---------- mood ---------- */
-  .mood-header-btn {
-    flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
-    background: var(--surface); color: var(--text-muted); display: flex; align-items: center; justify-content: center;
-    cursor: pointer; padding: 0; font-size: 1.05rem;
-  }
-  .mood-header-btn svg { width: 18px; height: 18px; }
-  .mood-header-btn:hover { color: var(--text); border-color: var(--ink); }
-  .mood-header-btn.logged { border-color: var(--ember); background: var(--ember-soft); }
-  .mood-strip {
-    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-  }
-  .mood-strip-label { font-size: 0.88rem; font-weight: 600; color: var(--text); }
-  .mood-strip-scale { display: flex; gap: 8px; }
-  .mood-strip-btn {
-    width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2);
-    font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
-  }
-  .mood-strip-btn.active { border-color: var(--ember); background: var(--ember-soft); box-shadow: 0 0 0 2px var(--ember-soft); }
-  .mood-strip-logged { display: flex; align-items: center; gap: 10px; font-size: 0.86rem; color: var(--text-muted); }
-  .mood-strip-logged .mood-strip-emoji { font-size: 1.3rem; }
-  .mood-strip-change-btn {
-    background: transparent; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;
-    font-family: var(--font-body); font-size: 0.76rem; padding: 4px 11px; border-radius: var(--radius-sm);
-  }
-  .mood-strip-change-btn:hover { border-color: var(--ink); color: var(--text); }
-  .mood-strip-note {
-    flex-basis: 100%; width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    padding: 7px 9px; font-family: var(--font-body); font-size: 0.82rem; color: var(--text); margin-top: 10px;
-  }
-
   /* ---------- notebook ---------- */
   .note-card { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); flex: none; overflow: hidden; }
   .note-card-head {
@@ -865,12 +834,6 @@
       <path d="M6 10 C6 6.5 8.5 4 12 4 C15.5 4 18 6.5 18 10 C18 14 19.5 15.5 19.5 16.5 L4.5 16.5 C4.5 15.5 6 14 6 10 Z"/>
       <path d="M10 19.5 C10 20.6 10.9 21.5 12 21.5 C13.1 21.5 14 20.6 14 19.5"/>
     </symbol>
-    <symbol id="icon-mood" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="8.5"/>
-      <circle cx="9" cy="10" r="0.6" fill="currentColor" stroke="none"/>
-      <circle cx="15" cy="10" r="0.6" fill="currentColor" stroke="none"/>
-      <path d="M8.5 15 Q12 17.2 15.5 15"/>
-    </symbol>
     <symbol id="icon-medal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M8 3 L6 10 M16 3 L18 10"/>
       <circle cx="12" cy="14" r="6.5"/>
@@ -931,9 +894,6 @@
       <button type="button" class="level-badge" id="levelBadgeBtn" aria-label="View achievements">
         <div class="level-top"><span class="lv-num" id="levelNum">1</span><span class="lv-label">level</span></div>
         <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
-      </button>
-      <button type="button" class="mood-header-btn" id="moodHeaderBtn" aria-label="Log your mood" title="Mood">
-        <svg><use href="#icon-mood"/></svg>
       </button>
     </div>
   </header>
@@ -1261,22 +1221,6 @@
         <p class="settings-note" id="trendCopy"></p>
       </div>
 
-      <div class="agenda-section" id="moodHeatmapSection" hidden>
-        <span class="agenda-section-label">Mood</span>
-        <div class="heatmap-scroll" id="moodHeatmapScroll">
-          <div class="heatmap-grid" id="moodHeatmapGrid"></div>
-        </div>
-        <div class="heatmap-legend">
-          <span>😞</span>
-          <span class="heatmap-cell level-0"></span>
-          <span class="heatmap-cell level-1"></span>
-          <span class="heatmap-cell level-2"></span>
-          <span class="heatmap-cell level-3"></span>
-          <span class="heatmap-cell level-4"></span>
-          <span>😄</span>
-        </div>
-      </div>
-
       <div class="agenda-section">
         <span class="agenda-section-label">Lifetime totals</span>
         <ul class="stat-list" id="statTotalsList"></ul>
@@ -1295,16 +1239,6 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="moodModalBackdrop" hidden></div>
-<div class="modal-panel" id="moodPanel" hidden aria-label="Mood">
-  <div class="modal-header">
-    <span class="modal-title">Mood</span>
-    <button class="icon-btn" data-action="close-mood-panel" aria-label="Close mood"><svg><use href="#icon-x"/></svg></button>
-  </div>
-  <div class="modal-body">
-    <div class="mood-strip" id="moodStrip"></div>
-  </div>
-</div>
 
 <div class="celebration" id="celebration" aria-live="polite">
   <div class="celebration-glow"></div>
@@ -1313,7 +1247,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-09-mood-header-icon';
+  var BUILD_ID = '2026-09-09-remove-mood';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -1435,7 +1369,6 @@
     if (!state.notes) state.notes = [];
     if (!state.habits) state.habits = [];
     if (!state.tasks) state.tasks = [];
-    if (!state.moodLogs) state.moodLogs = [];
     if (!state.notifications) state.notifications = { enabled: false, allInOne: { enabled: false, time: '20:00' } };
     if (!state.notifications.allInOne) state.notifications.allInOne = { enabled: false, time: '20:00' };
     if (!state.unlockedAchievements) state.unlockedAchievements = [];
@@ -1659,7 +1592,6 @@
   var habitHintExpanded = false;
   var habitCategoryOpen = {};
   var habitCategoryFilter = null;
-  var moodStripEditing = false;
   var currentView = 'board';
   var calViewDate = new Date();
   calViewDate.setDate(1);
@@ -1926,44 +1858,6 @@
     });
   }
 
-  function renderMoodStrip() {
-    var el = document.getElementById('moodStrip');
-    if (!el) return;
-    var today = todayISO();
-    var log = state.moodLogs.find(function (l) { return l.date === today; }) || null;
-    var editing = moodStripEditing || !log;
-    if (editing) {
-      var scale = MOOD_SCALE.map(function (s) {
-        return '<button type="button" class="mood-strip-btn' + (log && log.value === s.value ? ' active' : '') + '" data-action="log-mood" data-value="' + s.value + '">' + s.emoji + '</button>';
-      }).join('');
-      el.innerHTML =
-        '<span class="mood-strip-label">How are you feeling today?</span>' +
-        '<div class="mood-strip-scale">' + scale + '</div>' +
-        '<input type="text" class="mood-strip-note" id="moodStripNote" placeholder="Optional note" value="' + escapeAttr(log ? (log.note || '') : '') + '">';
-    } else {
-      var scaleEntry = MOOD_SCALE.filter(function (s) { return s.value === log.value; })[0];
-      el.innerHTML =
-        '<div class="mood-strip-logged">' +
-          '<span class="mood-strip-emoji">' + (scaleEntry ? scaleEntry.emoji : '') + '</span>' +
-          '<span>' + (log.note ? escapeHtml(log.note) : 'Mood logged for today') + '</span>' +
-        '</div>' +
-        '<button type="button" class="mood-strip-change-btn" data-action="edit-mood">Change</button>';
-    }
-  }
-  function renderMoodHeaderBtn() {
-    var btn = document.getElementById('moodHeaderBtn');
-    if (!btn) return;
-    var today = todayISO();
-    var log = state.moodLogs.find(function (l) { return l.date === today; }) || null;
-    if (log) {
-      var entry = MOOD_SCALE.filter(function (m) { return m.value === log.value; })[0];
-      btn.innerHTML = '<span class="mood-header-emoji">' + (entry ? entry.emoji : '') + '</span>';
-      btn.classList.add('logged');
-    } else {
-      btn.innerHTML = '<svg><use href="#icon-mood"/></svg>';
-      btn.classList.remove('logged');
-    }
-  }
   function notePreview(body) {
     var flat = (body || '').replace(/\s+/g, ' ').trim();
     if (!flat) return '';
@@ -2066,11 +1960,6 @@
     }
     return occurrences;
   }
-
-  var MOOD_SCALE = [
-    { value: 1, emoji: '😞' }, { value: 2, emoji: '😕' }, { value: 3, emoji: '😐' },
-    { value: 4, emoji: '🙂' }, { value: 5, emoji: '😄' }
-  ];
 
   function getDayEvents(iso) {
     return state.events.filter(function (ev) { return generateOccurrences(ev, iso, iso).length > 0; }).sort(function (a, b) {
@@ -2327,7 +2216,6 @@
   function renderAll() {
     renderHabits();
     renderTasks();
-    renderMoodHeaderBtn();
     renderNotes();
     renderStatus();
     renderCalendar();
@@ -2358,33 +2246,6 @@
     dateInput.value = '';
     saveState();
     renderAll();
-  });
-
-  document.getElementById('moodStrip').addEventListener('click', function (e) {
-    var btn = e.target.closest('button');
-    if (!btn) return;
-    var action = btn.dataset.action;
-    var today = todayISO();
-    if (action === 'log-mood') {
-      var noteInput = document.getElementById('moodStripNote');
-      var note = noteInput ? noteInput.value.trim() : '';
-      var value = parseInt(btn.dataset.value, 10);
-      var existing = state.moodLogs.find(function (l) { return l.date === today; });
-      if (existing) {
-        existing.value = value;
-        existing.note = note || null;
-        existing.createdAt = Date.now();
-      } else {
-        state.moodLogs.push({ id: uid(), date: today, value: value, note: note || null, createdAt: Date.now() });
-      }
-      moodStripEditing = false;
-      saveState();
-      renderMoodStrip();
-      renderMoodHeaderBtn();
-    } else if (action === 'edit-mood') {
-      moodStripEditing = true;
-      renderMoodStrip();
-    }
   });
 
   // ---------- drag to reorder ----------
@@ -2856,26 +2717,6 @@
     if (e.key === 'Escape' && !achPanel.hidden) closeAchModal();
   });
 
-  // ---------- mood modal ----------
-  var moodPanel = document.getElementById('moodPanel');
-  var moodModalBackdrop = document.getElementById('moodModalBackdrop');
-  function openMoodModal() {
-    moodStripEditing = false;
-    renderMoodStrip();
-    moodModalBackdrop.hidden = false;
-    moodPanel.hidden = false;
-  }
-  function closeMoodModal() {
-    moodModalBackdrop.hidden = true;
-    moodPanel.hidden = true;
-  }
-  document.getElementById('moodHeaderBtn').addEventListener('click', openMoodModal);
-  moodPanel.querySelector('[data-action="close-mood-panel"]').addEventListener('click', closeMoodModal);
-  moodModalBackdrop.addEventListener('click', closeMoodModal);
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !moodPanel.hidden) closeMoodModal();
-  });
-
   function renderAchievements() {
     var lvl = levelFromXp(state.xp);
     document.getElementById('achLevelNum').textContent = lvl.level;
@@ -2953,21 +2794,6 @@
       html += '<span class="heatmap-cell ' + heatmapLevel(pct) + '" title="' + iso + (pct === null ? '' : ': ' + Math.round(pct * 100) + '%') + '"></span>';
     });
     document.getElementById('heatmapGrid').innerHTML = html;
-
-    var moodSection = document.getElementById('moodHeatmapSection');
-    moodSection.hidden = !state.moodLogs.length;
-    if (state.moodLogs.length) {
-      var moodHtml = '';
-      padded.forEach(function (d) {
-        if (!d) { moodHtml += '<span class="heatmap-cell empty"></span>'; return; }
-        var iso = isoFromDate(d);
-        var entry = state.moodLogs.find(function (l) { return l.date === iso; });
-        var level = entry ? 'level-' + (entry.value - 1) : 'empty';
-        var titleText = iso + (entry ? ': ' + (MOOD_SCALE.filter(function (m) { return m.value === entry.value; })[0] || {}).emoji + (entry.note ? ' — ' + entry.note : '') : '');
-        moodHtml += '<span class="heatmap-cell ' + level + '" title="' + escapeAttr(titleText) + '"></span>';
-      });
-      document.getElementById('moodHeatmapGrid').innerHTML = moodHtml;
-    }
 
     function weekAvg(startAgo, endAgo) {
       var vals = [];
