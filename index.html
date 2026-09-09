@@ -681,11 +681,16 @@
   .habit-add .add-submit { background: var(--ember); }
   .task-add .add-submit { background: var(--leaf); }
 
-  /* ---------- mood strip ---------- */
+  /* ---------- mood ---------- */
+  .mood-header-btn {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0; font-size: 1.05rem;
+  }
+  .mood-header-btn svg { width: 18px; height: 18px; }
+  .mood-header-btn:hover { color: var(--text); border-color: var(--ink); }
+  .mood-header-btn.logged { border-color: var(--ember); background: var(--ember-soft); }
   .mood-strip {
-    grid-column: 1 / -1;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 14px 18px; box-shadow: var(--shadow);
     display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
   }
   .mood-strip-label { font-size: 0.88rem; font-weight: 600; color: var(--text); }
@@ -860,6 +865,12 @@
       <path d="M6 10 C6 6.5 8.5 4 12 4 C15.5 4 18 6.5 18 10 C18 14 19.5 15.5 19.5 16.5 L4.5 16.5 C4.5 15.5 6 14 6 10 Z"/>
       <path d="M10 19.5 C10 20.6 10.9 21.5 12 21.5 C13.1 21.5 14 20.6 14 19.5"/>
     </symbol>
+    <symbol id="icon-mood" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="8.5"/>
+      <circle cx="9" cy="10" r="0.6" fill="currentColor" stroke="none"/>
+      <circle cx="15" cy="10" r="0.6" fill="currentColor" stroke="none"/>
+      <path d="M8.5 15 Q12 17.2 15.5 15"/>
+    </symbol>
     <symbol id="icon-medal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M8 3 L6 10 M16 3 L18 10"/>
       <circle cx="12" cy="14" r="6.5"/>
@@ -917,6 +928,9 @@
           <span class="momentum-sub" id="momentumCopy">Cold start. Light the first one.</span>
         </div>
       </div>
+      <button type="button" class="mood-header-btn" id="moodHeaderBtn" aria-label="Log your mood" title="Mood">
+        <svg><use href="#icon-mood"/></svg>
+      </button>
       <button type="button" class="level-badge" id="levelBadgeBtn" aria-label="View achievements">
         <div class="level-top"><span class="lv-num" id="levelNum">1</span><span class="lv-label">level</span></div>
         <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
@@ -950,8 +964,6 @@
         <button type="submit" class="add-submit"><svg><use href="#icon-plus"/></svg></button>
       </form>
     </section>
-
-    <div class="mood-strip" id="moodStrip"></div>
   </main>
 
   <main class="calendar-view" id="calendarView" hidden>
@@ -1283,6 +1295,17 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="moodModalBackdrop" hidden></div>
+<div class="modal-panel" id="moodPanel" hidden aria-label="Mood">
+  <div class="modal-header">
+    <span class="modal-title">Mood</span>
+    <button class="icon-btn" data-action="close-mood-panel" aria-label="Close mood"><svg><use href="#icon-x"/></svg></button>
+  </div>
+  <div class="modal-body">
+    <div class="mood-strip" id="moodStrip"></div>
+  </div>
+</div>
+
 <div class="celebration" id="celebration" aria-live="polite">
   <div class="celebration-glow"></div>
   <div class="celebration-banner"><svg><use href="#icon-flame"/></svg><span id="celebrationText">Fully stoked today</span></div>
@@ -1290,7 +1313,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-09-mood-strip-v2';
+  var BUILD_ID = '2026-09-09-mood-header-icon';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -1908,6 +1931,20 @@
         '<button type="button" class="mood-strip-change-btn" data-action="edit-mood">Change</button>';
     }
   }
+  function renderMoodHeaderBtn() {
+    var btn = document.getElementById('moodHeaderBtn');
+    if (!btn) return;
+    var today = todayISO();
+    var log = state.moodLogs.find(function (l) { return l.date === today; }) || null;
+    if (log) {
+      var entry = MOOD_SCALE.filter(function (m) { return m.value === log.value; })[0];
+      btn.innerHTML = '<span class="mood-header-emoji">' + (entry ? entry.emoji : '') + '</span>';
+      btn.classList.add('logged');
+    } else {
+      btn.innerHTML = '<svg><use href="#icon-mood"/></svg>';
+      btn.classList.remove('logged');
+    }
+  }
   function notePreview(body) {
     var flat = (body || '').replace(/\s+/g, ' ').trim();
     if (!flat) return '';
@@ -2271,7 +2308,7 @@
   function renderAll() {
     renderHabits();
     renderTasks();
-    renderMoodStrip();
+    renderMoodHeaderBtn();
     renderNotes();
     renderStatus();
     renderCalendar();
@@ -2324,6 +2361,7 @@
       moodStripEditing = false;
       saveState();
       renderMoodStrip();
+      renderMoodHeaderBtn();
     } else if (action === 'edit-mood') {
       moodStripEditing = true;
       renderMoodStrip();
@@ -2785,6 +2823,26 @@
   achModalBackdrop.addEventListener('click', closeAchModal);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !achPanel.hidden) closeAchModal();
+  });
+
+  // ---------- mood modal ----------
+  var moodPanel = document.getElementById('moodPanel');
+  var moodModalBackdrop = document.getElementById('moodModalBackdrop');
+  function openMoodModal() {
+    moodStripEditing = false;
+    renderMoodStrip();
+    moodModalBackdrop.hidden = false;
+    moodPanel.hidden = false;
+  }
+  function closeMoodModal() {
+    moodModalBackdrop.hidden = true;
+    moodPanel.hidden = true;
+  }
+  document.getElementById('moodHeaderBtn').addEventListener('click', openMoodModal);
+  moodPanel.querySelector('[data-action="close-mood-panel"]').addEventListener('click', closeMoodModal);
+  moodModalBackdrop.addEventListener('click', closeMoodModal);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !moodPanel.hidden) closeMoodModal();
   });
 
   function renderAchievements() {
