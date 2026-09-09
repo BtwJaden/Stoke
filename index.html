@@ -728,6 +728,11 @@
   .checkin-history-row.empty { font-style: italic; }
   .checkin-history-date { font-family: var(--font-mono); flex: none; color: var(--ink); }
   .checkin-row .item-actions { flex-basis: 100%; }
+  .checkin-freetext-toggle {
+    display: flex; align-items: center; gap: 7px; font-size: 0.82rem; color: var(--text-muted); cursor: pointer;
+  }
+  .checkin-freetext-toggle input { accent-color: var(--ember); }
+  #checkinLinkedHint { margin: -2px 0 0; }
 
   /* ---------- notebook ---------- */
   .note-card { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); flex: none; overflow: hidden; }
@@ -1302,21 +1307,18 @@
     <ul class="item-list" id="checkinList"></ul>
     <form class="event-add" id="checkinForm">
       <input type="text" id="checkinTitle" placeholder="What do you want to check in on? e.g. Daily mood" maxlength="60" required>
-      <div class="event-add-row">
-        <select id="checkinFrequency" class="feedback-select" style="flex:1;">
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
-        <select id="checkinPromptType" class="feedback-select" style="flex:1;">
-          <option value="mood">Mood (1-5)</option>
-          <option value="progress">Progress rating (1-5)</option>
-          <option value="freetext">Free text</option>
-        </select>
-      </div>
-      <select id="checkinLinkedHabit" class="feedback-select" style="width:100%;">
-        <option value="">General check-in (not linked to a habit)</option>
+      <select id="checkinFrequency" class="feedback-select" style="width:100%;">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
       </select>
+      <select id="checkinLinkedHabit" class="feedback-select" style="width:100%;">
+        <option value="">General check-in (mood)</option>
+      </select>
+      <p class="column-hint" id="checkinLinkedHint">A general check-in tracks your overall mood. Link it to a habit instead to rate progress on that specific thing.</p>
+      <label class="checkin-freetext-toggle">
+        <input type="checkbox" id="checkinFreetextToggle"> Answer with free text instead of a rating
+      </label>
       <button type="submit" class="settings-btn">Add check-in</button>
     </form>
   </div>
@@ -1329,7 +1331,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-09-checkins-modal';
+  var BUILD_ID = '2026-09-09-checkins-simplify';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -2452,18 +2454,25 @@
     e.preventDefault();
     var titleInput = document.getElementById('checkinTitle');
     var freqSelect = document.getElementById('checkinFrequency');
-    var promptSelect = document.getElementById('checkinPromptType');
     var linkedSelect = document.getElementById('checkinLinkedHabit');
+    var freetextToggle = document.getElementById('checkinFreetextToggle');
     var title = titleInput.value.trim();
     if (!title) return;
+    var linkedHabitId = linkedSelect.value || null;
+    // Mood and progress-rating aren't an independent choice -- they follow directly from
+    // whether the check-in is general or linked to a habit (mood is a standalone, general
+    // thing; a progress rating only makes sense in reference to something specific). Free
+    // text is the one independent axis: available either way for anyone who'd rather write
+    // than rate.
+    var promptType = freetextToggle.checked ? 'freetext' : (linkedHabitId ? 'progress' : 'mood');
     state.checkIns.push({
-      id: uid(), title: title, frequency: freqSelect.value, promptType: promptSelect.value,
-      linkedHabitId: linkedSelect.value || null, date: todayISO(), createdAt: Date.now()
+      id: uid(), title: title, frequency: freqSelect.value, promptType: promptType,
+      linkedHabitId: linkedHabitId, date: todayISO(), createdAt: Date.now()
     });
     titleInput.value = '';
     freqSelect.value = 'daily';
-    promptSelect.value = 'mood';
     linkedSelect.value = '';
+    freetextToggle.checked = false;
     saveState();
     renderCheckins();
   });
