@@ -474,6 +474,23 @@
   .reminder-badge svg { width: 11px; height: 11px; }
   .icon-btn.has-reminder { color: var(--ink); }
   .reminder-area { margin-top: 8px; }
+  .category-area { margin-top: 8px; }
+
+  .category-badge {
+    display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 0.68rem;
+    color: var(--chip-color); background: var(--chip-soft);
+    border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+  }
+  .category-filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .habit-category-row.inline-color-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .category-chip {
+    border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+    font-family: var(--font-body); font-size: 0.74rem; padding: 4px 10px; cursor: pointer; white-space: nowrap;
+  }
+  .category-chip.active {
+    color: var(--chip-color); background: var(--chip-soft); border-color: var(--chip-color);
+  }
+  .category-chip.auto.active { color: var(--text); background: var(--surface-2); border-color: var(--ink); }
 
   /* ---------- modal sheet (day details) ---------- */
   .modal-backdrop {
@@ -556,7 +573,7 @@
   /* ---------- habit tile ---------- */
   .habit-tile {
     border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2);
-    padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start;
   }
   .flame-btn {
     flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
@@ -591,6 +608,7 @@
   .heat-dot.today { outline: 1px solid var(--text-muted); outline-offset: 1px; }
 
   .item-actions { display: flex; gap: 4px; flex: none; }
+  .habit-tile .item-actions { flex-basis: 100%; margin-top: 2px; }
   .icon-btn {
     width: 26px; height: 26px; border-radius: 7px; border: 1px solid transparent; background: transparent;
     color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -829,6 +847,10 @@
       <path d="M5 5 L12 12 L5 19"/>
       <path d="M13 5 L20 12 L13 19"/>
     </symbol>
+    <symbol id="icon-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 12.5 L12.5 20 C12 20.5 11 20.5 10.5 20 L4 13.5 C3.5 13 3.5 12 4 11.5 L11.5 4 L20 4 Z"/>
+      <circle cx="16" cy="8" r="1.3" fill="currentColor" stroke="none"/>
+    </symbol>
     <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 3.5 V15 M7 10.5 L12 15.5 L17 10.5"/>
       <path d="M4.5 17.5 V19 C4.5 19.8 5.2 20.5 6 20.5 H18 C18.8 20.5 19.5 19.8 19.5 19 V17.5"/>
@@ -880,6 +902,7 @@
     <section class="column">
       <div class="column-head"><h2>Habits</h2><span class="column-count" id="habitCount">0</span></div>
       <p class="column-hint">Daily check-offs. Keep the streak alive.</p>
+      <div class="category-filter-row" id="habitCategoryFilterRow"></div>
       <ul class="item-list" id="habitList"></ul>
       <form class="add-row habit-add" id="habitForm">
         <input type="text" id="habitInput" placeholder="Add a habit, e.g. Workout 30 min" maxlength="60" required>
@@ -1207,6 +1230,11 @@
         <span class="agenda-section-label">Best streaks</span>
         <ul class="stat-list" id="statStreaksList"></ul>
       </div>
+
+      <div class="agenda-section" id="statCategorySection" hidden>
+        <span class="agenda-section-label">By category (last 7 days)</span>
+        <ul class="stat-list" id="statCategoryList"></ul>
+      </div>
     </div>
   </div>
 </div>
@@ -1218,7 +1246,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-07-occ-hint-toggle';
+  var BUILD_ID = '2026-09-09-habit-categories';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -1353,6 +1381,7 @@
     state.habits.forEach(function (h) { if (h.note && !h.noteCreatedAt) h.noteCreatedAt = h.noteUpdatedAt = Date.now(); });
     state.tasks.forEach(function (t) { if (t.note && !t.noteCreatedAt) t.noteCreatedAt = t.noteUpdatedAt = Date.now(); });
     state.habits.forEach(function (h, i) { if (typeof h.sortOrder !== 'number') h.sortOrder = (i + 1) * 1000; });
+    state.habits.forEach(function (h) { if (typeof h.category === 'undefined') h.category = null; });
     state.tasks.forEach(function (t, i) { if (typeof t.sortOrder !== 'number') t.sortOrder = (i + 1) * 1000; });
     state.events.forEach(function (ev) {
       if (!ev.type) ev.type = 'appointment';
@@ -1483,6 +1512,30 @@
     return html;
   }
 
+  var HABIT_CATEGORIES = {
+    fitness:      { label: 'Fitness',      color: EVENT_COLORS.red.solid,    soft: EVENT_COLORS.red.soft },
+    health:       { label: 'Health',       color: EVENT_COLORS.green.solid,  soft: EVENT_COLORS.green.soft },
+    mindfulness:  { label: 'Mindfulness',  color: EVENT_COLORS.purple.solid, soft: EVENT_COLORS.purple.soft },
+    productivity: { label: 'Productivity', color: EVENT_COLORS.yellow.solid, soft: EVENT_COLORS.yellow.soft },
+    reading:      { label: 'Reading',      color: EVENT_COLORS.blue.solid,   soft: EVENT_COLORS.blue.soft },
+    chores:       { label: 'Chores',       color: EVENT_COLORS.brown.solid,  soft: EVENT_COLORS.brown.soft }
+  };
+  var HABIT_CATEGORY_ORDER = ['fitness', 'health', 'mindfulness', 'productivity', 'reading', 'chores'];
+  function categoryChipStyle(c) {
+    return ' style="--chip-color:' + c.color + ';--chip-soft:' + c.soft + '"';
+  }
+  function habitCategoryRowHtml(h) {
+    var current = h.category || '';
+    var html = '<div class="habit-category-row inline-color-row">';
+    html += '<button type="button" class="category-chip auto' + (current === '' ? ' active' : '') + '" data-category="">None</button>';
+    HABIT_CATEGORY_ORDER.forEach(function (key) {
+      var c = HABIT_CATEGORIES[key];
+      html += '<button type="button" class="category-chip' + (current === key ? ' active' : '') + '" data-category="' + key + '"' + categoryChipStyle(c) + '>' + c.label + '</button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
   function applyAccentTheme() {
     var theme = state.accentTheme || 'ember';
     document.documentElement.style.removeProperty('--ember');
@@ -1535,6 +1588,8 @@
   var eventColorPickerOpen = {};
   var noteOpen = {};
   var occHintExpanded = false;
+  var habitCategoryOpen = {};
+  var habitCategoryFilter = null;
   var currentView = 'board';
   var calViewDate = new Date();
   calViewDate.setDate(1);
@@ -1654,8 +1709,20 @@
   var taskList = document.getElementById('taskList');
   var noteCards = document.getElementById('noteCards');
 
+  function renderHabitCategoryFilter() {
+    var row = document.getElementById('habitCategoryFilterRow');
+    if (!state.habits.length) { row.innerHTML = ''; return; }
+    var html = '<button type="button" class="category-chip filter-chip' + (habitCategoryFilter === null ? ' active' : '') + '" data-filter="">All</button>';
+    HABIT_CATEGORY_ORDER.forEach(function (key) {
+      var c = HABIT_CATEGORIES[key];
+      html += '<button type="button" class="category-chip filter-chip' + (habitCategoryFilter === key ? ' active' : '') + '" data-filter="' + key + '"' + categoryChipStyle(c) + '>' + c.label + '</button>';
+    });
+    row.innerHTML = html;
+  }
+
   function renderHabits() {
     document.getElementById('habitCount').textContent = state.habits.length;
+    renderHabitCategoryFilter();
     habitList.innerHTML = '';
     if (!state.habits.length) {
       habitList.innerHTML = '<li class="empty-state">No habits yet. Add one to start the fire.</li>';
@@ -1663,6 +1730,13 @@
     }
     var today = todayISO();
     var sortedHabits = state.habits.slice().sort(function (a, b) { return a.sortOrder - b.sortOrder; });
+    if (habitCategoryFilter !== null) {
+      sortedHabits = sortedHabits.filter(function (h) { return h.category === habitCategoryFilter; });
+    }
+    if (!sortedHabits.length) {
+      habitList.innerHTML = '<li class="empty-state">No habits in this category.</li>';
+      return;
+    }
     sortedHabits.forEach(function (h) {
       var doneToday = h.history.indexOf(today) !== -1;
       var streak = calcStreak(h.history);
@@ -1685,13 +1759,18 @@
       var reminderBadge = h.reminderTime
         ? '<span class="reminder-badge" title="Daily reminder"><svg><use href="#icon-bell"/></svg>' + formatTime12(h.reminderTime) + '</span>'
         : '';
+      var categoryBadge = (h.category && HABIT_CATEGORIES[h.category])
+        ? '<span class="category-badge"' + categoryChipStyle(HABIT_CATEGORIES[h.category]) + '>' + HABIT_CATEGORIES[h.category].label + '</span>'
+        : '';
+      var categoryOpen = !!habitCategoryOpen[h.id];
 
       li.innerHTML =
         '<button class="flame-btn" data-action="toggle-habit" aria-pressed="' + doneToday + '" aria-label="Mark ' + escapeAttr(h.name) + ' done for today"><svg><use href="#icon-flame"/></svg></button>' +
         '<div class="habit-main">' +
           '<div class="habit-row">' + nameMarkup + '<span class="streak-count' + (streak === 0 ? ' zero' : '') + '">' + streak + (streak === 1 ? ' day' : ' days') + '</span></div>' +
-          (reminderBadge ? '<div class="reminder-meta">' + reminderBadge + '</div>' : '') +
+          ((reminderBadge || categoryBadge) ? '<div class="reminder-meta">' + categoryBadge + reminderBadge + '</div>' : '') +
           '<div class="heat-row">' + heat + '</div>' +
+          '<div class="category-area"' + (categoryOpen ? '' : ' hidden') + '>' + habitCategoryRowHtml(h) + '</div>' +
           '<div class="reminder-area"' + (h.reminderOpen ? '' : ' hidden') + '>' +
             '<div class="time-field">' +
               '<label for="habit-reminder-' + h.id + '">Remind</label>' +
@@ -1705,6 +1784,7 @@
         '<div class="item-actions">' +
           '<button class="icon-btn" data-action="toggle-edit" aria-label="Rename habit"><svg><use href="#icon-edit"/></svg></button>' +
           '<button class="icon-btn' + (h.reminderTime ? ' has-reminder' : '') + '" data-action="toggle-reminder" aria-label="Set reminder"><svg><use href="#icon-bell"/></svg></button>' +
+          '<button class="icon-btn' + (h.category ? ' has-reminder' : '') + '" data-action="toggle-category" aria-label="Set category" title="Category"><svg><use href="#icon-tag"/></svg></button>' +
           '<button class="icon-btn" data-action="toggle-note" aria-label="Toggle note"><svg><use href="#icon-note"/></svg></button>' +
           '<button class="icon-btn danger" data-action="delete-habit" aria-label="Delete habit"><svg><use href="#icon-x"/></svg></button>' +
         '</div>';
@@ -2129,7 +2209,7 @@
     var input = document.getElementById('habitInput');
     var name = input.value.trim();
     if (!name) return;
-    state.habits.push({ id: uid(), name: name, note: '', noteOpen: false, history: [], reminderTime: '', reminderOpen: false, createdAt: Date.now(), sortOrder: nextSortOrder(state.habits) });
+    state.habits.push({ id: uid(), name: name, note: '', noteOpen: false, history: [], reminderTime: '', reminderOpen: false, createdAt: Date.now(), sortOrder: nextSortOrder(state.habits), category: null });
     input.value = '';
     saveState();
     renderAll();
@@ -2342,6 +2422,13 @@
     if (!li) return;
     var habit = state.habits.find(function (h) { return h.id === li.dataset.id; });
     if (!habit) return;
+    if (btn.classList.contains('category-chip')) {
+      habit.category = btn.dataset.category || null;
+      habitCategoryOpen[habit.id] = false;
+      saveState();
+      renderHabits();
+      return;
+    }
     var action = btn.dataset.action;
     if (action === 'toggle-habit') {
       var today = todayISO();
@@ -2361,13 +2448,24 @@
     } else if (action === 'toggle-reminder') {
       habit.reminderOpen = !habit.reminderOpen;
       renderHabits();
+    } else if (action === 'toggle-category') {
+      habitCategoryOpen[habit.id] = !habitCategoryOpen[habit.id];
+      renderHabits();
     } else if (action === 'delete-habit') {
       state.habits = state.habits.filter(function (h) { return h.id !== habit.id; });
       delete habitEditing[habit.id];
+      delete habitCategoryOpen[habit.id];
       saveState();
       renderAll();
       syncReminders();
     }
+  });
+
+  document.getElementById('habitCategoryFilterRow').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-filter]');
+    if (!btn) return;
+    habitCategoryFilter = btn.dataset.filter || null;
+    renderHabits();
   });
 
   function commitHabitEdit(input) {
@@ -2703,6 +2801,25 @@
       return '<li><span>' + escapeHtml(s.name) + '</span><span class="stat-value">' + s.best + (s.best === 1 ? ' day' : ' days') + '</span></li>';
     }).join('');
     document.getElementById('statStreaksList').innerHTML = streaksHtml || '<li><span>No habits yet</span></li>';
+
+    var categoryStats = HABIT_CATEGORY_ORDER.map(function (key) {
+      var habitsInCat = state.habits.filter(function (h) { return h.category === key; });
+      if (!habitsInCat.length) return null;
+      var rates = habitsInCat.map(function (h) {
+        var hits = 0;
+        for (var d = 0; d <= 6; d++) { if (h.history.indexOf(isoDaysAgo(d)) !== -1) hits++; }
+        return hits / 7;
+      });
+      var avg = rates.reduce(function (a, b) { return a + b; }, 0) / rates.length;
+      return { key: key, label: HABIT_CATEGORIES[key].label, color: HABIT_CATEGORIES[key].color, pct: avg };
+    }).filter(Boolean).sort(function (a, b) { return b.pct - a.pct; });
+    var categorySection = document.getElementById('statCategorySection');
+    categorySection.hidden = !categoryStats.length;
+    if (categoryStats.length) {
+      document.getElementById('statCategoryList').innerHTML = categoryStats.map(function (c) {
+        return '<li><span style="color:' + c.color + '">' + escapeHtml(c.label) + '</span><span class="stat-value">' + Math.round(c.pct * 100) + '%</span></li>';
+      }).join('');
+    }
   }
 
   document.getElementById('todayLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
