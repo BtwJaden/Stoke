@@ -420,25 +420,25 @@
     background: var(--dot-color); padding: 0; vertical-align: middle; margin-right: 6px; flex: none;
   }
   .inline-color-row { margin-top: 8px; }
-  .occ-hint {
+  .icon-hint {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
     border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--surface-2);
     padding: 8px 10px; font-size: 0.78rem; color: var(--text-muted);
   }
-  .occ-hint-text { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
-  .occ-hint-text svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; stroke: currentColor; fill: none; }
-  .occ-hint-dismiss {
+  .icon-hint-text { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+  .icon-hint-text svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; stroke: currentColor; fill: none; }
+  .icon-hint-dismiss {
     flex: none; background: transparent; border: 1px solid var(--border); color: var(--text-muted);
     font-family: var(--font-body); font-size: 0.76rem; padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer;
   }
-  .occ-hint-dismiss:hover { border-color: var(--ink); color: var(--text); }
-  .occ-hint-collapsed { display: flex; justify-content: flex-end; }
-  .occ-hint-chip {
+  .icon-hint-dismiss:hover { border-color: var(--ink); color: var(--text); }
+  .icon-hint-collapsed { display: flex; justify-content: flex-end; }
+  .icon-hint-chip {
     width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent;
     color: var(--text-muted); font-family: var(--font-body); font-size: 0.72rem; font-weight: 600;
     cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
   }
-  .occ-hint-chip:hover { border-color: var(--ink); color: var(--text); }
+  .icon-hint-chip:hover { border-color: var(--ink); color: var(--text); }
   .settings-input {
     background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
     font-family: var(--font-body); font-size: 0.84rem; padding: 9px 10px; border-radius: var(--radius-sm);
@@ -1442,6 +1442,7 @@
     if (!state.stats) state.stats = { tasksCompletedTotal: 0 };
     if (typeof state.stats.tasksCompletedTotal !== 'number') state.stats.tasksCompletedTotal = 0;
     if (typeof state.hasSeenOccHint === 'undefined') state.hasSeenOccHint = false;
+    if (typeof state.hasSeenHabitHint === 'undefined') state.hasSeenHabitHint = false;
     if (!state.accentTheme) state.accentTheme = 'ember';
     if (typeof state.customAccent === 'undefined') state.customAccent = '';
     if (!state.bgTheme) state.bgTheme = 'default';
@@ -1655,6 +1656,7 @@
   var eventColorPickerOpen = {};
   var noteOpen = {};
   var occHintExpanded = false;
+  var habitHintExpanded = false;
   var habitCategoryOpen = {};
   var habitCategoryFilter = null;
   var moodStripEditing = false;
@@ -1805,6 +1807,23 @@
       habitList.innerHTML = '<li class="empty-state">No habits in this category.</li>';
       return;
     }
+    var hint = document.createElement('li');
+    if (!state.hasSeenHabitHint || habitHintExpanded) {
+      hint.className = 'icon-hint';
+      hint.innerHTML =
+        '<span class="icon-hint-text">' +
+          '<svg><use href="#icon-edit"/></svg>Rename' +
+          '<svg><use href="#icon-bell"/></svg>Reminder' +
+          '<svg><use href="#icon-tag"/></svg>Category' +
+          '<svg><use href="#icon-note"/></svg>Notes' +
+          '<svg><use href="#icon-x"/></svg>Delete' +
+        '</span>' +
+        '<button type="button" class="icon-hint-dismiss" data-action="dismiss-habit-hint">Got it</button>';
+    } else {
+      hint.className = 'icon-hint-collapsed';
+      hint.innerHTML = '<button type="button" class="icon-hint-chip" data-action="expand-habit-hint" title="What do these icons mean?">?</button>';
+    }
+    habitList.appendChild(hint);
     sortedHabits.forEach(function (h) {
       var doneToday = h.history.indexOf(today) !== -1;
       var streak = calcStreak(h.history);
@@ -2161,18 +2180,18 @@
     if (hasRecurring) {
       var hint = document.createElement('li');
       if (!state.hasSeenOccHint || occHintExpanded) {
-        hint.className = 'occ-hint';
+        hint.className = 'icon-hint';
         hint.innerHTML =
-          '<span class="occ-hint-text">' +
+          '<span class="icon-hint-text">' +
             '<svg><use href="#icon-check"/></svg>Done' +
             '<svg><use href="#icon-skip"/></svg>Skip' +
             '<svg><use href="#icon-calendar"/></svg>Move' +
             '<svg><use href="#icon-x"/></svg>Delete' +
           '</span>' +
-          '<button type="button" class="occ-hint-dismiss" data-action="dismiss-occ-hint">Got it</button>';
+          '<button type="button" class="icon-hint-dismiss" data-action="dismiss-occ-hint">Got it</button>';
       } else {
-        hint.className = 'occ-hint-collapsed';
-        hint.innerHTML = '<button type="button" class="occ-hint-chip" data-action="expand-occ-hint" title="What do these icons mean?">?</button>';
+        hint.className = 'icon-hint-collapsed';
+        hint.innerHTML = '<button type="button" class="icon-hint-chip" data-action="expand-occ-hint" title="What do these icons mean?">?</button>';
       }
       eventListEl.appendChild(hint);
     }
@@ -2557,6 +2576,18 @@
   habitList.addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
+    if (btn.dataset.action === 'dismiss-habit-hint') {
+      state.hasSeenHabitHint = true;
+      habitHintExpanded = false;
+      saveState();
+      renderHabits();
+      return;
+    }
+    if (btn.dataset.action === 'expand-habit-hint') {
+      habitHintExpanded = true;
+      renderHabits();
+      return;
+    }
     var li = e.target.closest('li.habit-tile');
     if (!li) return;
     var habit = state.habits.find(function (h) { return h.id === li.dataset.id; });
