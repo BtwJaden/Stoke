@@ -514,6 +514,18 @@
     padding-bottom: max(16px, calc(env(safe-area-inset-bottom) + 12px));
   }
 
+  /* ---------- onboarding ---------- */
+  .onboard-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .onboard-primary-btn {
+    background: var(--ember); color: var(--bg); border: none; border-radius: var(--radius-sm);
+    font-family: var(--font-body); font-weight: 600; font-size: 0.9rem; padding: 12px; cursor: pointer;
+  }
+  .onboard-skip-btn {
+    background: transparent; border: none; color: var(--text-muted); font-family: var(--font-body);
+    font-size: 0.82rem; padding: 6px; cursor: pointer; text-decoration: underline;
+  }
+  .onboard-skip-btn:hover { color: var(--text); }
+
   /* ---------- achievements ---------- */
   .ach-level-summary {
     display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--border);
@@ -1239,6 +1251,21 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="onboardModalBackdrop" hidden></div>
+<div class="modal-panel" id="onboardPanel" hidden aria-label="Welcome to Stoke">
+  <div class="modal-header">
+    <span class="modal-title">Welcome to Stoke</span>
+    <button class="icon-btn" data-action="skip-onboard" aria-label="Skip"><svg><use href="#icon-x"/></svg></button>
+  </div>
+  <div class="modal-body">
+    <p class="settings-note">Pick a few habits to get started. You can rename, delete, or add your own anytime.</p>
+    <div id="onboardTemplateGroups"></div>
+    <div class="onboard-actions">
+      <button type="button" class="onboard-primary-btn" id="onboardAddBtn">Add selected</button>
+      <button type="button" class="onboard-skip-btn" id="onboardSkipBtn">Skip for now</button>
+    </div>
+  </div>
+</div>
 
 <div class="celebration" id="celebration" aria-live="polite">
   <div class="celebration-glow"></div>
@@ -1247,7 +1274,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-09-remove-mood';
+  var BUILD_ID = '2026-09-09-onboarding';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -1363,8 +1390,10 @@
     return h12 + ':' + parts[1] + ' ' + ampm;
   }
 
-  function normalizeState(state) {
-    if (!state) state = { xp: 0, habits: [], tasks: [], notes: [], events: [] };
+  function normalizeState(rawState) {
+    var isBrandNew = !rawState;
+    var state = rawState || { xp: 0, habits: [], tasks: [], notes: [], events: [] };
+    if (typeof state.hasOnboarded === 'undefined') state.hasOnboarded = !isBrandNew;
     if (!state.events) state.events = [];
     if (!state.notes) state.notes = [];
     if (!state.habits) state.habits = [];
@@ -1522,6 +1551,18 @@
     chores:       { label: 'Chores',       color: EVENT_COLORS.brown.solid,  soft: EVENT_COLORS.brown.soft }
   };
   var HABIT_CATEGORY_ORDER = ['fitness', 'health', 'mindfulness', 'productivity', 'chores'];
+  var ONBOARD_TEMPLATES = [
+    { id: 'fit1', category: 'fitness', name: 'Workout 30 min', starred: true },
+    { id: 'fit2', category: 'fitness', name: 'Go for a walk', starred: false },
+    { id: 'hea1', category: 'health', name: 'Drink more water', starred: true },
+    { id: 'hea2', category: 'health', name: 'Take vitamins', starred: false },
+    { id: 'min1', category: 'mindfulness', name: 'Meditate 10 min', starred: false },
+    { id: 'min2', category: 'mindfulness', name: 'Journal', starred: false },
+    { id: 'pro1', category: 'productivity', name: 'Plan tomorrow', starred: true },
+    { id: 'pro2', category: 'productivity', name: 'Inbox zero', starred: false },
+    { id: 'cho1', category: 'chores', name: 'Make the bed', starred: false },
+    { id: 'cho2', category: 'chores', name: 'Tidy for 10 min', starred: false }
+  ];
   function categoryChipStyle(c) {
     return ' style="--chip-color:' + c.color + ';--chip-soft:' + c.soft + '"';
   }
@@ -1592,6 +1633,8 @@
   var habitHintExpanded = false;
   var habitCategoryOpen = {};
   var habitCategoryFilter = null;
+  var onboardSelected = {};
+  ONBOARD_TEMPLATES.forEach(function (t) { onboardSelected[t.id] = !!t.starred; });
   var currentView = 'board';
   var calViewDate = new Date();
   calViewDate.setDate(1);
@@ -2717,6 +2760,57 @@
     if (e.key === 'Escape' && !achPanel.hidden) closeAchModal();
   });
 
+  // ---------- onboarding ----------
+  var onboardPanel = document.getElementById('onboardPanel');
+  var onboardModalBackdrop = document.getElementById('onboardModalBackdrop');
+  function renderOnboardTemplates() {
+    var html = '';
+    HABIT_CATEGORY_ORDER.forEach(function (key) {
+      var c = HABIT_CATEGORIES[key];
+      var items = ONBOARD_TEMPLATES.filter(function (t) { return t.category === key; });
+      if (!items.length) return;
+      html += '<div class="agenda-section"><span class="agenda-section-label">' + c.label + '</span><div class="habit-category-row inline-color-row">';
+      items.forEach(function (t) {
+        html += '<button type="button" class="category-chip' + (onboardSelected[t.id] ? ' active' : '') + '" data-onboard-id="' + t.id + '"' + categoryChipStyle(c) + '>' + escapeHtml(t.name) + '</button>';
+      });
+      html += '</div></div>';
+    });
+    document.getElementById('onboardTemplateGroups').innerHTML = html;
+  }
+  function openOnboardModal() {
+    renderOnboardTemplates();
+    onboardModalBackdrop.hidden = false;
+    onboardPanel.hidden = false;
+  }
+  function finishOnboarding(addSelected) {
+    if (addSelected) {
+      ONBOARD_TEMPLATES.forEach(function (t) {
+        if (!onboardSelected[t.id]) return;
+        state.habits.push({ id: uid(), name: t.name, note: '', noteOpen: false, history: [], reminderTime: '', reminderOpen: false, createdAt: Date.now(), sortOrder: nextSortOrder(state.habits), category: t.category });
+      });
+    }
+    state.hasOnboarded = true;
+    saveState();
+    onboardModalBackdrop.hidden = true;
+    onboardPanel.hidden = true;
+    renderAll();
+    checkAchievements();
+  }
+  document.getElementById('onboardTemplateGroups').addEventListener('click', function (e) {
+    var btn = e.target.closest('.category-chip');
+    if (!btn) return;
+    var id = btn.dataset.onboardId;
+    onboardSelected[id] = !onboardSelected[id];
+    renderOnboardTemplates();
+  });
+  document.getElementById('onboardAddBtn').addEventListener('click', function () { finishOnboarding(true); });
+  document.getElementById('onboardSkipBtn').addEventListener('click', function () { finishOnboarding(false); });
+  onboardPanel.querySelector('[data-action="skip-onboard"]').addEventListener('click', function () { finishOnboarding(false); });
+  onboardModalBackdrop.addEventListener('click', function () { finishOnboarding(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !onboardPanel.hidden) finishOnboarding(false);
+  });
+
   function renderAchievements() {
     var lvl = levelFromXp(state.xp);
     document.getElementById('achLevelNum').textContent = lvl.level;
@@ -3582,6 +3676,7 @@
   applyAccentTheme();
   applyBgTheme();
   pullSyncOnLoad();
+  if (!state.hasOnboarded) openOnboardModal();
 
   document.getElementById('accentSwatchRow').addEventListener('click', function (e) {
     var btn = e.target.closest('.accent-swatch');
