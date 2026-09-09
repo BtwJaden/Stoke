@@ -162,6 +162,13 @@
   .momentum-title { font-size: 0.82rem; font-weight: 600; }
   .momentum-sub { font-size: 0.74rem; color: var(--text-muted); max-width: 140px; }
 
+  .checkin-header-btn {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+  }
+  .checkin-header-btn svg { width: 17px; height: 17px; }
+  .checkin-header-btn:hover { color: var(--text); border-color: var(--ink); }
   .level-badge { display: flex; flex-direction: column; gap: 4px; min-width: 84px; background: none; border: none; padding: 0; font: inherit; text-align: left; cursor: pointer; }
   .level-top { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-mono); }
   .level-top .lv-num { font-size: 1.05rem; font-weight: 600; color: var(--ember); }
@@ -178,7 +185,6 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
     padding: 18px; box-shadow: var(--shadow); min-width: 0;
   }
-  .checkins-column { grid-column: 1 / -1; }
   .column-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
   .column-head h2 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; margin: 0; }
   .column-count { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); }
@@ -933,6 +939,9 @@
           <span class="momentum-sub" id="momentumCopy">Cold start. Light the first one.</span>
         </div>
       </div>
+      <button type="button" class="checkin-header-btn" id="checkinHeaderBtn" aria-label="Check-ins" title="Check-ins">
+        <svg><use href="#icon-check"/></svg>
+      </button>
       <button type="button" class="level-badge" id="levelBadgeBtn" aria-label="View achievements">
         <div class="level-top"><span class="lv-num" id="levelNum">1</span><span class="lv-label">level</span></div>
         <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
@@ -967,30 +976,6 @@
       </form>
     </section>
 
-    <section class="column checkins-column">
-      <div class="column-head"><h2>Check-ins</h2><span class="column-count" id="checkinCount">0</span></div>
-      <p class="column-hint">Quick, low-pressure reflection prompts.</p>
-      <ul class="item-list" id="checkinList"></ul>
-      <form class="event-add" id="checkinForm">
-        <input type="text" id="checkinTitle" placeholder="What do you want to check in on? e.g. Daily mood" maxlength="60" required>
-        <div class="event-add-row">
-          <select id="checkinFrequency" class="feedback-select" style="flex:1;">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-          <select id="checkinPromptType" class="feedback-select" style="flex:1;">
-            <option value="mood">Mood (1-5)</option>
-            <option value="progress">Progress rating (1-5)</option>
-            <option value="freetext">Free text</option>
-          </select>
-        </div>
-        <select id="checkinLinkedHabit" class="feedback-select" style="width:100%;">
-          <option value="">General check-in (not linked to a habit)</option>
-        </select>
-        <button type="submit" class="settings-btn">Add check-in</button>
-      </form>
-    </section>
   </main>
 
   <main class="calendar-view" id="calendarView" hidden>
@@ -1306,6 +1291,37 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="checkinModalBackdrop" hidden></div>
+<div class="modal-panel" id="checkinPanel" hidden aria-label="Check-ins">
+  <div class="modal-header">
+    <span class="modal-title">Check-ins</span>
+    <button class="icon-btn" data-action="close-checkin-panel" aria-label="Close check-ins"><svg><use href="#icon-x"/></svg></button>
+  </div>
+  <div class="modal-body">
+    <p class="column-hint">Quick, low-pressure reflection prompts.</p>
+    <ul class="item-list" id="checkinList"></ul>
+    <form class="event-add" id="checkinForm">
+      <input type="text" id="checkinTitle" placeholder="What do you want to check in on? e.g. Daily mood" maxlength="60" required>
+      <div class="event-add-row">
+        <select id="checkinFrequency" class="feedback-select" style="flex:1;">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+        <select id="checkinPromptType" class="feedback-select" style="flex:1;">
+          <option value="mood">Mood (1-5)</option>
+          <option value="progress">Progress rating (1-5)</option>
+          <option value="freetext">Free text</option>
+        </select>
+      </div>
+      <select id="checkinLinkedHabit" class="feedback-select" style="width:100%;">
+        <option value="">General check-in (not linked to a habit)</option>
+      </select>
+      <button type="submit" class="settings-btn">Add check-in</button>
+    </form>
+  </div>
+</div>
+
 <div class="celebration" id="celebration" aria-live="polite">
   <div class="celebration-glow"></div>
   <div class="celebration-banner"><svg><use href="#icon-flame"/></svg><span id="celebrationText">Fully stoked today</span></div>
@@ -1313,7 +1329,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-09-checkins';
+  var BUILD_ID = '2026-09-09-checkins-modal';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -1934,7 +1950,6 @@
 
   function renderCheckins() {
     renderCheckinLinkedHabitOptions();
-    document.getElementById('checkinCount').textContent = state.checkIns.length;
     var listEl = document.getElementById('checkinList');
     listEl.innerHTML = '';
     if (!state.checkIns.length) {
@@ -2951,6 +2966,25 @@
   achModalBackdrop.addEventListener('click', closeAchModal);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !achPanel.hidden) closeAchModal();
+  });
+
+  // ---------- check-ins modal ----------
+  var checkinPanel = document.getElementById('checkinPanel');
+  var checkinModalBackdrop = document.getElementById('checkinModalBackdrop');
+  function openCheckinModal() {
+    renderCheckins();
+    checkinModalBackdrop.hidden = false;
+    checkinPanel.hidden = false;
+  }
+  function closeCheckinModal() {
+    checkinModalBackdrop.hidden = true;
+    checkinPanel.hidden = true;
+  }
+  document.getElementById('checkinHeaderBtn').addEventListener('click', openCheckinModal);
+  checkinPanel.querySelector('[data-action="close-checkin-panel"]').addEventListener('click', closeCheckinModal);
+  checkinModalBackdrop.addEventListener('click', closeCheckinModal);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !checkinPanel.hidden) closeCheckinModal();
   });
 
   function renderAchievements() {
