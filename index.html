@@ -162,13 +162,6 @@
   .momentum-title { font-size: 0.82rem; font-weight: 600; }
   .momentum-sub { font-size: 0.74rem; color: var(--text-muted); max-width: 140px; }
 
-  .checkin-header-btn {
-    flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
-    background: var(--surface); color: var(--text-muted); display: flex; align-items: center; justify-content: center;
-    cursor: pointer; padding: 0;
-  }
-  .checkin-header-btn svg { width: 17px; height: 17px; }
-  .checkin-header-btn:hover { color: var(--text); border-color: var(--ink); }
   .level-badge { display: flex; flex-direction: column; gap: 4px; min-width: 84px; background: none; border: none; padding: 0; font: inherit; text-align: left; cursor: pointer; }
   .level-top { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-mono); }
   .level-top .lv-num { font-size: 1.05rem; font-weight: 600; color: var(--ember); }
@@ -688,51 +681,30 @@
   .habit-add .add-submit { background: var(--ember); }
   .task-add .add-submit { background: var(--leaf); }
 
-  /* ---------- check-ins ---------- */
-  .checkin-row {
-    border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2);
-    padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start;
+  /* ---------- mood strip ---------- */
+  .mood-strip {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 14px 18px; box-shadow: var(--shadow); max-width: 980px; margin: 0 auto 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
   }
-  .checkin-main { flex: 1; min-width: 0; }
-  .checkin-row-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .checkin-title { font-weight: 600; font-size: 0.92rem; }
-  .checkin-freq-badge {
-    font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted);
-    background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px;
+  .mood-strip-label { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+  .mood-strip-scale { display: flex; gap: 8px; }
+  .mood-strip-btn {
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-2);
+    font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
   }
-  .checkin-linked {
-    display: flex; align-items: center; gap: 4px; font-size: 0.76rem; color: var(--text-muted); margin-top: 3px;
-  }
-  .checkin-linked svg { width: 11px; height: 11px; }
-  .checkin-answer-area { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
-  .checkin-rate-row { display: flex; gap: 6px; }
-  .checkin-rate-btn {
-    width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface);
-    font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
-  }
-  .checkin-rate-btn.active { border-color: var(--ember); background: var(--ember-soft); }
-  .checkin-note-input, .checkin-freetext-input {
-    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    padding: 7px 9px; font-family: var(--font-body); font-size: 0.82rem; color: var(--text);
-  }
-  .checkin-freetext-input { min-height: 56px; resize: vertical; }
-  .checkin-log-btn { align-self: flex-start; }
-  .checkin-logged { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 0.84rem; color: var(--text-muted); }
-  .checkin-edit-btn {
+  .mood-strip-btn.active { border-color: var(--ember); background: var(--ember-soft); box-shadow: 0 0 0 2px var(--ember-soft); }
+  .mood-strip-logged { display: flex; align-items: center; gap: 10px; font-size: 0.86rem; color: var(--text-muted); }
+  .mood-strip-logged .mood-strip-emoji { font-size: 1.3rem; }
+  .mood-strip-change-btn {
     background: transparent; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;
-    font-family: var(--font-body); font-size: 0.74rem; padding: 3px 9px; border-radius: var(--radius-sm);
+    font-family: var(--font-body); font-size: 0.76rem; padding: 4px 11px; border-radius: var(--radius-sm);
   }
-  .checkin-edit-btn:hover { border-color: var(--ink); color: var(--text); }
-  .checkin-history { margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; }
-  .checkin-history-row { display: flex; gap: 8px; font-size: 0.78rem; color: var(--text-muted); }
-  .checkin-history-row.empty { font-style: italic; }
-  .checkin-history-date { font-family: var(--font-mono); flex: none; color: var(--ink); }
-  .checkin-row .item-actions { flex-basis: 100%; }
-  .checkin-freetext-toggle {
-    display: flex; align-items: center; gap: 7px; font-size: 0.82rem; color: var(--text-muted); cursor: pointer;
+  .mood-strip-change-btn:hover { border-color: var(--ink); color: var(--text); }
+  .mood-strip-note {
+    flex-basis: 100%; width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 7px 9px; font-family: var(--font-body); font-size: 0.82rem; color: var(--text); margin-top: 10px;
   }
-  .checkin-freetext-toggle input { accent-color: var(--ember); }
-  #checkinLinkedHint { margin: -2px 0 0; }
 
   /* ---------- notebook ---------- */
   .note-card { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); flex: none; overflow: hidden; }
@@ -944,15 +916,14 @@
           <span class="momentum-sub" id="momentumCopy">Cold start. Light the first one.</span>
         </div>
       </div>
-      <button type="button" class="checkin-header-btn" id="checkinHeaderBtn" aria-label="Check-ins" title="Check-ins">
-        <svg><use href="#icon-check"/></svg>
-      </button>
       <button type="button" class="level-badge" id="levelBadgeBtn" aria-label="View achievements">
         <div class="level-top"><span class="lv-num" id="levelNum">1</span><span class="lv-label">level</span></div>
         <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
       </button>
     </div>
   </header>
+
+  <div class="mood-strip" id="moodStrip"></div>
 
   <main class="board" id="boardView">
     <section class="column">
@@ -1296,34 +1267,6 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="checkinModalBackdrop" hidden></div>
-<div class="modal-panel" id="checkinPanel" hidden aria-label="Check-ins">
-  <div class="modal-header">
-    <span class="modal-title">Check-ins</span>
-    <button class="icon-btn" data-action="close-checkin-panel" aria-label="Close check-ins"><svg><use href="#icon-x"/></svg></button>
-  </div>
-  <div class="modal-body">
-    <p class="column-hint">Quick, low-pressure reflection prompts.</p>
-    <ul class="item-list" id="checkinList"></ul>
-    <form class="event-add" id="checkinForm">
-      <input type="text" id="checkinTitle" placeholder="What do you want to check in on? e.g. Daily mood" maxlength="60" required>
-      <select id="checkinFrequency" class="feedback-select" style="width:100%;">
-        <option value="daily">Daily</option>
-        <option value="weekly">Weekly</option>
-        <option value="monthly">Monthly</option>
-      </select>
-      <select id="checkinLinkedHabit" class="feedback-select" style="width:100%;">
-        <option value="">General check-in (mood)</option>
-      </select>
-      <p class="column-hint" id="checkinLinkedHint">A general check-in tracks your overall mood. Link it to a habit instead to rate progress on that specific thing.</p>
-      <label class="checkin-freetext-toggle">
-        <input type="checkbox" id="checkinFreetextToggle"> Answer with free text instead of a rating
-      </label>
-      <button type="submit" class="settings-btn">Add check-in</button>
-    </form>
-  </div>
-</div>
-
 <div class="celebration" id="celebration" aria-live="polite">
   <div class="celebration-glow"></div>
   <div class="celebration-banner"><svg><use href="#icon-flame"/></svg><span id="celebrationText">Fully stoked today</span></div>
@@ -1331,7 +1274,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-09-checkins-simplify';
+  var BUILD_ID = '2026-09-09-mood-strip';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -1453,8 +1396,7 @@
     if (!state.notes) state.notes = [];
     if (!state.habits) state.habits = [];
     if (!state.tasks) state.tasks = [];
-    if (!state.checkIns) state.checkIns = [];
-    if (!state.checkInLogs) state.checkInLogs = [];
+    if (!state.moodLogs) state.moodLogs = [];
     if (!state.notifications) state.notifications = { enabled: false, allInOne: { enabled: false, time: '20:00' } };
     if (!state.notifications.allInOne) state.notifications.allInOne = { enabled: false, time: '20:00' };
     if (!state.unlockedAchievements) state.unlockedAchievements = [];
@@ -1676,8 +1618,7 @@
   var occHintExpanded = false;
   var habitCategoryOpen = {};
   var habitCategoryFilter = null;
-  var checkinHistoryOpen = {};
-  var checkinAnswering = {};
+  var moodStripEditing = false;
   var currentView = 'board';
   var calViewDate = new Date();
   calViewDate.setDate(1);
@@ -1927,111 +1868,30 @@
     });
   }
 
-  function saveCheckinLog(checkinId, period, value, note) {
-    var existing = checkinLogForPeriod(checkinId, period);
-    if (existing) {
-      existing.value = value;
-      existing.note = note || null;
-      existing.createdAt = Date.now();
+  function renderMoodStrip() {
+    var el = document.getElementById('moodStrip');
+    if (!el) return;
+    var today = todayISO();
+    var log = state.moodLogs.find(function (l) { return l.date === today; }) || null;
+    var editing = moodStripEditing || !log;
+    if (editing) {
+      var scale = MOOD_SCALE.map(function (s) {
+        return '<button type="button" class="mood-strip-btn' + (log && log.value === s.value ? ' active' : '') + '" data-action="log-mood" data-value="' + s.value + '">' + s.emoji + '</button>';
+      }).join('');
+      el.innerHTML =
+        '<span class="mood-strip-label">How are you feeling today?</span>' +
+        '<div class="mood-strip-scale">' + scale + '</div>' +
+        '<input type="text" class="mood-strip-note" id="moodStripNote" placeholder="Optional note" value="' + escapeAttr(log ? (log.note || '') : '') + '">';
     } else {
-      state.checkInLogs.push({ id: uid(), checkInId: checkinId, period: period, value: value, note: note || null, createdAt: Date.now() });
-    }
-    saveState();
-  }
-
-  function renderCheckinLinkedHabitOptions() {
-    var select = document.getElementById('checkinLinkedHabit');
-    var current = select.value;
-    var html = '<option value="">General check-in (not linked to a habit)</option>';
-    state.habits.slice().sort(function (a, b) { return a.sortOrder - b.sortOrder; }).forEach(function (h) {
-      html += '<option value="' + h.id + '">' + escapeHtml(h.name) + '</option>';
-    });
-    select.innerHTML = html;
-    if (Array.prototype.some.call(select.options, function (o) { return o.value === current; })) select.value = current;
-  }
-
-  function renderCheckins() {
-    renderCheckinLinkedHabitOptions();
-    var listEl = document.getElementById('checkinList');
-    listEl.innerHTML = '';
-    if (!state.checkIns.length) {
-      listEl.innerHTML = '<li class="empty-state">No check-ins yet. Add one below to start a light reflection habit.</li>';
-      return;
-    }
-    var sorted = state.checkIns.slice().sort(function (a, b) { return a.createdAt - b.createdAt; });
-    sorted.forEach(function (ci) {
-      var li = document.createElement('li');
-      li.className = 'checkin-row';
-      li.dataset.id = ci.id;
-      var period = checkinCurrentPeriod(ci);
-      var log = period ? checkinLogForPeriod(ci.id, period) : null;
-      var linkedHabit = ci.linkedHabitId ? state.habits.find(function (h) { return h.id === ci.linkedHabitId; }) : null;
-      var historyOpen = !!checkinHistoryOpen[ci.id];
-      var editingAnswer = !!checkinAnswering[ci.id];
-
-      var headHtml =
-        '<div class="checkin-row-head">' +
-          '<span class="checkin-title">' + escapeHtml(ci.title) + '</span>' +
-          '<span class="checkin-freq-badge">' + CHECKIN_FREQUENCY_LABEL[ci.frequency] + '</span>' +
+      var scaleEntry = MOOD_SCALE.filter(function (s) { return s.value === log.value; })[0];
+      el.innerHTML =
+        '<div class="mood-strip-logged">' +
+          '<span class="mood-strip-emoji">' + (scaleEntry ? scaleEntry.emoji : '') + '</span>' +
+          '<span>' + (log.note ? escapeHtml(log.note) : 'Mood logged for today') + '</span>' +
         '</div>' +
-        (linkedHabit ? '<div class="checkin-linked"><svg><use href="#icon-tag"/></svg>' + escapeHtml(linkedHabit.name) + '</div>' : '');
-
-      var answerHtml;
-      if (log && !editingAnswer) {
-        var moodEmoji = ci.promptType === 'mood' ? (MOOD_SCALE.filter(function (m) { return m.value === log.value; })[0] || {}).emoji : null;
-        var display = ci.promptType === 'freetext'
-          ? (log.note ? escapeHtml(log.note) : '(no notes)')
-          : (ci.promptType === 'mood' ? moodEmoji : log.value + '/5') + (log.note ? ' — ' + escapeHtml(log.note) : '');
-        answerHtml =
-          '<div class="checkin-logged">' +
-            '<span>✓ Logged: ' + display + '</span>' +
-            '<button type="button" class="checkin-edit-btn" data-action="edit-checkin-answer">Edit</button>' +
-          '</div>';
-      } else if (ci.promptType === 'freetext') {
-        answerHtml =
-          '<div class="checkin-answer-area">' +
-            '<textarea class="checkin-freetext-input" placeholder="How\'s it going?">' + escapeHtml(log ? (log.note || '') : '') + '</textarea>' +
-            '<button type="button" class="settings-btn checkin-log-btn" data-action="log-checkin-freetext">Log</button>' +
-          '</div>';
-      } else {
-        var scale = ci.promptType === 'mood' ? MOOD_SCALE : [1, 2, 3, 4, 5].map(function (v) { return { value: v, emoji: String(v) }; });
-        answerHtml =
-          '<div class="checkin-answer-area">' +
-            '<div class="checkin-rate-row">' +
-              scale.map(function (s) {
-                return '<button type="button" class="checkin-rate-btn' + (log && log.value === s.value ? ' active' : '') + '" data-action="log-checkin-rate" data-value="' + s.value + '">' + s.emoji + '</button>';
-              }).join('') +
-            '</div>' +
-            '<input type="text" class="checkin-note-input" placeholder="Optional note" value="' + escapeAttr(log ? (log.note || '') : '') + '">' +
-          '</div>';
-      }
-
-      var historyEntries = state.checkInLogs.filter(function (l) { return l.checkInId === ci.id; })
-        .sort(function (a, b) { return b.createdAt - a.createdAt; }).slice(0, 10);
-      var historyHtml = historyOpen
-        ? '<div class="checkin-history">' + (historyEntries.length
-            ? historyEntries.map(function (l) {
-                var val = ci.promptType === 'freetext' ? '' : (ci.promptType === 'mood' ? (MOOD_SCALE.filter(function (m) { return m.value === l.value; })[0] || {}).emoji : l.value + '/5');
-                return '<div class="checkin-history-row"><span class="checkin-history-date">' + shortDate(l.createdAt) + '</span><span>' + val + (l.note ? ' ' + escapeHtml(l.note) : '') + '</span></div>';
-              }).join('')
-            : '<div class="checkin-history-row empty">No entries yet.</div>') +
-          '</div>'
-        : '';
-
-      li.innerHTML =
-        '<div class="checkin-main">' +
-          headHtml +
-          answerHtml +
-          historyHtml +
-        '</div>' +
-        '<div class="item-actions">' +
-          '<button type="button" class="icon-btn' + (historyOpen ? ' has-reminder' : '') + '" data-action="toggle-checkin-history" aria-label="History" title="History"><svg><use href="#icon-clock"/></svg></button>' +
-          '<button type="button" class="icon-btn danger" data-action="delete-checkin" aria-label="Delete check-in"><svg><use href="#icon-x"/></svg></button>' +
-        '</div>';
-      listEl.appendChild(li);
-    });
+        '<button type="button" class="mood-strip-change-btn" data-action="edit-mood">Change</button>';
+    }
   }
-
   function notePreview(body) {
     var flat = (body || '').replace(/\s+/g, ' ').trim();
     if (!flat) return '';
@@ -2135,32 +1995,10 @@
     return occurrences;
   }
 
-  var CHECKIN_FREQUENCY = {
-    daily: { unit: 'day', interval: 1 },
-    weekly: { unit: 'week', interval: 1 },
-    monthly: { unit: 'month', interval: 1 }
-  };
-  var CHECKIN_FREQUENCY_LABEL = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
-  var CHECKIN_PROMPT_LABEL = { mood: 'Mood', progress: 'Progress', freetext: 'Free text' };
   var MOOD_SCALE = [
     { value: 1, emoji: '😞' }, { value: 2, emoji: '😕' }, { value: 3, emoji: '😐' },
     { value: 4, emoji: '🙂' }, { value: 5, emoji: '😄' }
   ];
-
-  // The "current period" for a check-in is the most recent due date on/before today, given
-  // its frequency -- reuses the same recurrence engine calendar events use, rather than a
-  // separate implementation. A weekly check-in stays "answered" for the whole week once
-  // logged, not just for the literal day it was answered.
-  function checkinCurrentPeriod(ci) {
-    var today = todayISO();
-    if (ci.date > today) return null;
-    var occs = generateOccurrences({ date: ci.date, recurrence: CHECKIN_FREQUENCY[ci.frequency] || null }, ci.date, today);
-    if (!occs.length) return ci.date;
-    return occs[occs.length - 1].date;
-  }
-  function checkinLogForPeriod(checkinId, periodKey) {
-    return state.checkInLogs.find(function (l) { return l.checkInId === checkinId && l.period === periodKey; }) || null;
-  }
 
   function getDayEvents(iso) {
     return state.events.filter(function (ev) { return generateOccurrences(ev, iso, iso).length > 0; }).sort(function (a, b) {
@@ -2417,7 +2255,7 @@
   function renderAll() {
     renderHabits();
     renderTasks();
-    renderCheckins();
+    renderMoodStrip();
     renderNotes();
     renderStatus();
     renderCalendar();
@@ -2450,72 +2288,29 @@
     renderAll();
   });
 
-  document.getElementById('checkinForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var titleInput = document.getElementById('checkinTitle');
-    var freqSelect = document.getElementById('checkinFrequency');
-    var linkedSelect = document.getElementById('checkinLinkedHabit');
-    var freetextToggle = document.getElementById('checkinFreetextToggle');
-    var title = titleInput.value.trim();
-    if (!title) return;
-    var linkedHabitId = linkedSelect.value || null;
-    // Mood and progress-rating aren't an independent choice -- they follow directly from
-    // whether the check-in is general or linked to a habit (mood is a standalone, general
-    // thing; a progress rating only makes sense in reference to something specific). Free
-    // text is the one independent axis: available either way for anyone who'd rather write
-    // than rate.
-    var promptType = freetextToggle.checked ? 'freetext' : (linkedHabitId ? 'progress' : 'mood');
-    state.checkIns.push({
-      id: uid(), title: title, frequency: freqSelect.value, promptType: promptType,
-      linkedHabitId: linkedHabitId, date: todayISO(), createdAt: Date.now()
-    });
-    titleInput.value = '';
-    freqSelect.value = 'daily';
-    linkedSelect.value = '';
-    freetextToggle.checked = false;
-    saveState();
-    renderCheckins();
-  });
-
-  var checkinListEl = document.getElementById('checkinList');
-  checkinListEl.addEventListener('click', function (e) {
-    var li = e.target.closest('li.checkin-row');
-    if (!li) return;
-    var ci = state.checkIns.find(function (c) { return c.id === li.dataset.id; });
-    if (!ci) return;
-    var rateBtn = e.target.closest('[data-action="log-checkin-rate"]');
-    if (rateBtn) {
-      var period = checkinCurrentPeriod(ci);
-      if (!period) return;
-      var noteInput = li.querySelector('.checkin-note-input');
-      saveCheckinLog(ci.id, period, parseInt(rateBtn.dataset.value, 10), noteInput ? noteInput.value.trim() : '');
-      checkinAnswering[ci.id] = false;
-      renderCheckins();
-      return;
-    }
+  document.getElementById('moodStrip').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
     var action = btn.dataset.action;
-    if (action === 'log-checkin-freetext') {
-      var period2 = checkinCurrentPeriod(ci);
-      if (!period2) return;
-      var textarea = li.querySelector('.checkin-freetext-input');
-      saveCheckinLog(ci.id, period2, null, textarea ? textarea.value.trim() : '');
-      checkinAnswering[ci.id] = false;
-      renderCheckins();
-    } else if (action === 'edit-checkin-answer') {
-      checkinAnswering[ci.id] = true;
-      renderCheckins();
-    } else if (action === 'toggle-checkin-history') {
-      checkinHistoryOpen[ci.id] = !checkinHistoryOpen[ci.id];
-      renderCheckins();
-    } else if (action === 'delete-checkin') {
-      state.checkIns = state.checkIns.filter(function (c) { return c.id !== ci.id; });
-      state.checkInLogs = state.checkInLogs.filter(function (l) { return l.checkInId !== ci.id; });
-      delete checkinHistoryOpen[ci.id];
-      delete checkinAnswering[ci.id];
+    var today = todayISO();
+    if (action === 'log-mood') {
+      var noteInput = document.getElementById('moodStripNote');
+      var note = noteInput ? noteInput.value.trim() : '';
+      var value = parseInt(btn.dataset.value, 10);
+      var existing = state.moodLogs.find(function (l) { return l.date === today; });
+      if (existing) {
+        existing.value = value;
+        existing.note = note || null;
+        existing.createdAt = Date.now();
+      } else {
+        state.moodLogs.push({ id: uid(), date: today, value: value, note: note || null, createdAt: Date.now() });
+      }
+      moodStripEditing = false;
       saveState();
-      renderCheckins();
+      renderMoodStrip();
+    } else if (action === 'edit-mood') {
+      moodStripEditing = true;
+      renderMoodStrip();
     }
   });
 
@@ -2769,7 +2564,6 @@
       habit.name = value;
       saveState();
       if (habit.reminderTime) syncReminders();
-      renderCheckins();
     }
     renderHabits();
   }
@@ -2975,25 +2769,6 @@
   achModalBackdrop.addEventListener('click', closeAchModal);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !achPanel.hidden) closeAchModal();
-  });
-
-  // ---------- check-ins modal ----------
-  var checkinPanel = document.getElementById('checkinPanel');
-  var checkinModalBackdrop = document.getElementById('checkinModalBackdrop');
-  function openCheckinModal() {
-    renderCheckins();
-    checkinModalBackdrop.hidden = false;
-    checkinPanel.hidden = false;
-  }
-  function closeCheckinModal() {
-    checkinModalBackdrop.hidden = true;
-    checkinPanel.hidden = true;
-  }
-  document.getElementById('checkinHeaderBtn').addEventListener('click', openCheckinModal);
-  checkinPanel.querySelector('[data-action="close-checkin-panel"]').addEventListener('click', closeCheckinModal);
-  checkinModalBackdrop.addEventListener('click', closeCheckinModal);
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !checkinPanel.hidden) closeCheckinModal();
   });
 
   function renderAchievements() {
