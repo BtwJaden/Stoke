@@ -171,6 +171,14 @@
 
   /* ---------- board ---------- */
   .board { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; max-width: 980px; margin: 0 auto; }
+  .today-schedule-section { grid-column: 1 / -1; }
+  .schedule-row {
+    display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: var(--radius-md);
+    background: var(--surface-2); padding: 10px 12px; cursor: pointer;
+  }
+  .schedule-row-bar { width: 3px; align-self: stretch; border-radius: 2px; flex: none; }
+  .schedule-row-time { font-family: var(--font-mono); font-size: 0.76rem; color: var(--text-muted); flex: none; }
+  .schedule-row-title { font-size: 0.86rem; color: var(--text); flex: 1; min-width: 0; }
   @media (max-width: 720px) { .board { grid-template-columns: 1fr; } }
   .board[hidden], .calendar-view[hidden], .notes-view[hidden], .settings-view[hidden] { display: none; }
 
@@ -614,11 +622,6 @@
   .streak-count { font-family: var(--font-mono); font-size: 0.76rem; color: var(--ember); white-space: nowrap; }
   .streak-count.zero { color: var(--text-muted); }
 
-  .heat-row { display: flex; gap: 4px; margin-top: 7px; }
-  .heat-dot { width: 12px; height: 12px; border-radius: 3px; background: var(--border); flex: none; }
-  .heat-dot.filled { background: var(--ember); }
-  .heat-dot.today { outline: 1px solid var(--text-muted); outline-offset: 1px; }
-
   .item-actions { display: flex; gap: 4px; flex: none; }
   .habit-tile .item-actions { flex-basis: 100%; margin-top: 2px; }
   .icon-btn {
@@ -911,6 +914,11 @@
   </header>
 
   <main class="board" id="boardView">
+    <section class="column today-schedule-section">
+      <div class="column-head"><h2>Today's schedule</h2></div>
+      <ul class="item-list" id="todayScheduleList"></ul>
+    </section>
+
     <section class="column">
       <div class="column-head"><h2>Habits</h2><span class="column-count" id="habitCount">0</span></div>
       <p class="column-hint">Daily check-offs. Keep the streak alive.</p>
@@ -1097,8 +1105,8 @@
 </div>
 
 <nav class="bottom-nav">
-  <button class="nav-tab active" id="navBoard" data-view="board" aria-label="Board">
-    <svg><use href="#icon-flame"/></svg><span>Board</span>
+  <button class="nav-tab active" id="navBoard" data-view="board" aria-label="Today">
+    <svg><use href="#icon-flame"/></svg><span>Today</span>
   </button>
   <button class="nav-tab" id="navCalendar" data-view="calendar" aria-label="Calendar">
     <svg><use href="#icon-calendar"/></svg><span>Calendar</span>
@@ -1274,7 +1282,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-09-onboarding';
+  var BUILD_ID = '2026-09-09-today-tab';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -1807,13 +1815,6 @@
       li.className = 'habit-tile tier-' + tier + (doneToday ? ' done' : '');
       li.dataset.id = h.id;
 
-      var heat = '';
-      for (var i = 0; i <= 6; i++) {
-        var iso = isoDaysAgo(i);
-        var filled = h.history.indexOf(iso) !== -1;
-        heat += '<span class="heat-dot' + (filled ? ' filled' : '') + (iso === today ? ' today' : '') + '" title="' + iso + (filled ? ' - done' : '') + '"></span>';
-      }
-
       var editing = !!habitEditing[h.id];
       var nameMarkup = editing
         ? '<input type="text" class="habit-name-input" data-action="habit-name-input" value="' + escapeAttr(h.name) + '" maxlength="60">'
@@ -1831,7 +1832,6 @@
         '<div class="habit-main">' +
           '<div class="habit-row">' + nameMarkup + '<span class="streak-count' + (streak === 0 ? ' zero' : '') + '">' + streak + (streak === 1 ? ' day' : ' days') + '</span></div>' +
           ((reminderBadge || categoryBadge) ? '<div class="reminder-meta">' + categoryBadge + reminderBadge + '</div>' : '') +
-          '<div class="heat-row">' + heat + '</div>' +
           '<div class="category-area"' + (categoryOpen ? '' : ' hidden') + '>' + habitCategoryRowHtml(h) + '</div>' +
           '<div class="reminder-area"' + (h.reminderOpen ? '' : ' hidden') + '>' +
             '<div class="time-field">' +
@@ -2013,6 +2013,25 @@
     });
   }
 
+  function renderTodaySchedule() {
+    var listEl = document.getElementById('todayScheduleList');
+    if (!listEl) return;
+    var items = getDayEvents(todayISO());
+    if (!items.length) {
+      listEl.innerHTML = '<li class="empty-state">Nothing on the calendar today.</li>';
+      return;
+    }
+    listEl.innerHTML = items.map(function (ev) {
+      var c = resolveEventColor(ev);
+      var timeHtml = ev.startTime ? '<span class="schedule-row-time">' + formatTime12(ev.startTime) + '</span>' : '';
+      return '<li class="schedule-row" data-id="' + ev.id + '">' +
+        '<span class="schedule-row-bar" style="background:' + c.solid + '"></span>' +
+        timeHtml +
+        '<span class="schedule-row-title">' + escapeHtml(ev.title) + '</span>' +
+      '</li>';
+    }).join('');
+  }
+
   function dayChipsHtml(iso) {
     var items = getDayEvents(iso).map(function (ev) {
       var c = resolveEventColor(ev);
@@ -2072,6 +2091,7 @@
   }
 
   function renderCalendar() {
+    renderTodaySchedule();
     document.getElementById('calMonthLabel').textContent = calViewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
     var year = calViewDate.getFullYear(), month = calViewDate.getMonth();
@@ -3453,6 +3473,14 @@
     var btn = e.target.closest('.cal-list-day');
     if (!btn) return;
     selectedDate = btn.dataset.date;
+    renderCalendar();
+    openDayModal();
+  });
+
+  document.getElementById('todayScheduleList').addEventListener('click', function (e) {
+    var row = e.target.closest('.schedule-row');
+    if (!row) return;
+    selectedDate = todayISO();
     renderCalendar();
     openDayModal();
   });
