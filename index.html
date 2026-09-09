@@ -683,8 +683,9 @@
 
   /* ---------- mood strip ---------- */
   .mood-strip {
+    grid-column: 1 / -1;
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 14px 18px; box-shadow: var(--shadow); max-width: 980px; margin: 0 auto 20px;
+    padding: 14px 18px; box-shadow: var(--shadow);
     display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
   }
   .mood-strip-label { font-size: 0.88rem; font-weight: 600; color: var(--text); }
@@ -923,8 +924,6 @@
     </div>
   </header>
 
-  <div class="mood-strip" id="moodStrip"></div>
-
   <main class="board" id="boardView">
     <section class="column">
       <div class="column-head"><h2>Habits</h2><span class="column-count" id="habitCount">0</span></div>
@@ -952,6 +951,7 @@
       </form>
     </section>
 
+    <div class="mood-strip" id="moodStrip"></div>
   </main>
 
   <main class="calendar-view" id="calendarView" hidden>
@@ -1249,6 +1249,22 @@
         <p class="settings-note" id="trendCopy"></p>
       </div>
 
+      <div class="agenda-section" id="moodHeatmapSection" hidden>
+        <span class="agenda-section-label">Mood</span>
+        <div class="heatmap-scroll" id="moodHeatmapScroll">
+          <div class="heatmap-grid" id="moodHeatmapGrid"></div>
+        </div>
+        <div class="heatmap-legend">
+          <span>😞</span>
+          <span class="heatmap-cell level-0"></span>
+          <span class="heatmap-cell level-1"></span>
+          <span class="heatmap-cell level-2"></span>
+          <span class="heatmap-cell level-3"></span>
+          <span class="heatmap-cell level-4"></span>
+          <span>😄</span>
+        </div>
+      </div>
+
       <div class="agenda-section">
         <span class="agenda-section-label">Lifetime totals</span>
         <ul class="stat-list" id="statTotalsList"></ul>
@@ -1274,7 +1290,7 @@
 
 <script>
 (function () {
-  var BUILD_ID = '2026-09-09-mood-strip';
+  var BUILD_ID = '2026-09-09-mood-strip-v2';
   var STORAGE_KEY = 'stoke_app_v1';
   var ONESIGNAL_APP_ID = 'f52e2645-a50a-4db7-83fd-9e2a3bbff70d';
   var oneSignal = null;
@@ -2848,6 +2864,21 @@
       html += '<span class="heatmap-cell ' + heatmapLevel(pct) + '" title="' + iso + (pct === null ? '' : ': ' + Math.round(pct * 100) + '%') + '"></span>';
     });
     document.getElementById('heatmapGrid').innerHTML = html;
+
+    var moodSection = document.getElementById('moodHeatmapSection');
+    moodSection.hidden = !state.moodLogs.length;
+    if (state.moodLogs.length) {
+      var moodHtml = '';
+      padded.forEach(function (d) {
+        if (!d) { moodHtml += '<span class="heatmap-cell empty"></span>'; return; }
+        var iso = isoFromDate(d);
+        var entry = state.moodLogs.find(function (l) { return l.date === iso; });
+        var level = entry ? 'level-' + (entry.value - 1) : 'empty';
+        var titleText = iso + (entry ? ': ' + (MOOD_SCALE.filter(function (m) { return m.value === entry.value; })[0] || {}).emoji + (entry.note ? ' — ' + entry.note : '') : '');
+        moodHtml += '<span class="heatmap-cell ' + level + '" title="' + escapeAttr(titleText) + '"></span>';
+      });
+      document.getElementById('moodHeatmapGrid').innerHTML = moodHtml;
+    }
 
     function weekAvg(startAgo, endAgo) {
       var vals = [];
